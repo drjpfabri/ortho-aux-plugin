@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ortho-aux-plugin
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ORTHO_AUX_DB
+        value: /app/data/ortho_aux.sqlite3
+      - key: ORTHO_API_KEY
+        sync: false

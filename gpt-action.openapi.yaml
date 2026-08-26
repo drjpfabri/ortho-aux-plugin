@@ -1,0 +1,373 @@
+openapi: 3.1.0
+info:
+  title: Ortho Aux Plugin Action
+  version: 0.3.0
+  description: API deterministica para estado de consulta, seguranca documental, auditoria ortopedica e roteamento de fonte.
+servers:
+  - url: https://SEU-SERVICO.onrender.com
+security:
+  - OrthoApiKey: []
+paths:
+  /:
+    get:
+      operationId: getApiInfo
+      summary: Informacoes basicas da API
+      security: []
+      responses:
+        "200":
+          description: API pronta
+  /health:
+    get:
+      operationId: getApiHealth
+      summary: Health check publico
+      security: []
+      responses:
+        "200":
+          description: Servico saudavel
+  /v1/consultations:
+    post:
+      operationId: startOrthoConsultation
+      summary: Inicia nova consulta ortopedica isolada
+      responses:
+        "200":
+          description: Consulta iniciada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartResponse"
+        "401":
+          description: Chave de API ausente ou invalida
+  /v1/consultations/{consultation_id}:
+    get:
+      operationId: getOrthoConsultationState
+      summary: Recupera estado da consulta
+      parameters:
+        - $ref: "#/components/parameters/ConsultationId"
+      responses:
+        "200":
+          description: Estado atual
+        "401":
+          description: Chave de API ausente ou invalida
+        "404":
+          description: Consulta nao encontrada
+  /v1/consultations/{consultation_id}/events:
+    post:
+      operationId: captureOrthoConsultationEvent
+      summary: Registra fatos explicitamente fornecidos
+      parameters:
+        - $ref: "#/components/parameters/ConsultationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureRequest"
+      responses:
+        "200":
+          description: Fatos registrados
+        "401":
+          description: Chave de API ausente ou invalida
+        "404":
+          description: Consulta nao encontrada
+  /v1/consultations/{consultation_id}/audit:
+    post:
+      operationId: auditOrthoConsultation
+      summary: Aplica Safety Gate sem finalizar a consulta
+      parameters:
+        - $ref: "#/components/parameters/ConsultationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeRequest"
+      responses:
+        "200":
+          description: Alertas, bloqueadores e permissao de finalizacao
+        "401":
+          description: Chave de API ausente ou invalida
+        "404":
+          description: Consulta nao encontrada
+  /v1/consultations/{consultation_id}/finalize:
+    post:
+      operationId: finalizeOrthoConsultation
+      summary: Finaliza consulta somente se nao houver bloqueadores
+      parameters:
+        - $ref: "#/components/parameters/ConsultationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeRequest"
+      responses:
+        "200":
+          description: Finalizacao liberada para validacao medica
+        "401":
+          description: Chave de API ausente ou invalida
+        "404":
+          description: Consulta nao encontrada
+        "409":
+          description: Finalizacao bloqueada por pendencia clinica ou documental
+  /v1/evidence/source-route:
+    post:
+      operationId: routeOrthopedicSource
+      summary: Indica a fonte ortopedica preferencial por dominio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteRequest"
+      responses:
+        "200":
+          description: Fonte preferencial e usos
+        "401":
+          description: Chave de API ausente ou invalida
+  /v1/evidence/search:
+    post:
+      operationId: searchOrthopedicEvidence
+      summary: Busca inicial segura de evidencia ortopedica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceSearchRequest"
+      responses:
+        "200":
+          description: Roteamento e metadados; sem redistribuir trechos protegidos
+        "401":
+          description: Chave de API ausente ou invalida
+components:
+  securitySchemes:
+    OrthoApiKey:
+      type: apiKey
+      in: header
+      name: X-Ortho-Api-Key
+  parameters:
+    ConsultationId:
+      name: consultation_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Identificador retornado por startOrthoConsultation.
+  schemas:
+    StartResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        consultation_id:
+          type: string
+        message:
+          type: string
+    CaptureRequest:
+      type: object
+      properties:
+        mode:
+          $ref: "#/components/schemas/Mode"
+        facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fact"
+      additionalProperties: false
+    Fact:
+      type: object
+      required:
+        - field
+        - value
+        - source
+      properties:
+        field:
+          type: string
+          description: Campo clinico informado, sem inferir normalidade por ausencia.
+        value:
+          description: Valor explicitamente fornecido.
+        source:
+          $ref: "#/components/schemas/Source"
+        validated:
+          type: boolean
+          default: false
+        note:
+          type: string
+          nullable: true
+      additionalProperties: false
+    Source:
+      type: string
+      enum:
+        - PACIENTE
+        - ACOMPANHANTE
+        - TRIAGEM/EQUIPE
+        - ACHADO MÉDICO
+        - INTERPRETAÇÃO MÉDICA
+        - SUGESTÃO IA
+    Mode:
+      type: string
+      enum:
+        - STAFF
+        - PLANTÃO
+        - RESIDÊNCIA
+        - PROVA
+        - PRONTUÁRIO
+        - SISREG
+        - IMAGEM
+        - EXAME
+        - CIRURGIA
+        - CASO
+        - PACIENTE
+        - AUDITOR
+    Domain:
+      type: string
+      enum:
+        - trauma_adulto
+        - trauma_pediatrico
+        - anatomia
+        - semiologia
+        - trauma_brasil
+        - politrauma
+        - terminologia
+        - tumor
+        - medico_legal
+        - angulos
+    RouteRequest:
+      type: object
+      required:
+        - domain
+      properties:
+        domain:
+          $ref: "#/components/schemas/Domain"
+      additionalProperties: false
+    EvidenceSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 3
+          maxLength: 500
+        domain:
+          $ref: "#/components/schemas/Domain"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+      additionalProperties: false
+    FinalizeRequest:
+      type: object
+      properties:
+        identity:
+          $ref: "#/components/schemas/IdentityCheck"
+        safety:
+          $ref: "#/components/schemas/SafetyFlags"
+        intervention:
+          $ref: "#/components/schemas/Intervention"
+        procedure:
+          $ref: "#/components/schemas/ProcedureCheck"
+        neurovascular:
+          $ref: "#/components/schemas/NeurovascularCheck"
+        critical_field_pending:
+          type: boolean
+          default: false
+        unvalidated_ai_suggestion_as_decision:
+          type: boolean
+          default: false
+      additionalProperties: false
+    IdentityCheck:
+      type: object
+      properties:
+        possible_patient_mix:
+          type: boolean
+          default: false
+        laterality_conflict:
+          type: boolean
+          default: false
+        details:
+          type: string
+          nullable: true
+      additionalProperties: false
+    SafetyFlags:
+      type: object
+      properties:
+        choque:
+          type: boolean
+          default: false
+        hemorragia:
+          type: boolean
+          default: false
+        isquemia_lesao_vascular:
+          type: boolean
+          default: false
+        deficit_neurologico_novo_progressivo:
+          type: boolean
+          default: false
+        sindrome_compartimental:
+          type: boolean
+          default: false
+        fratura_exposta:
+          type: boolean
+          default: false
+        amputacao_esmagamento:
+          type: boolean
+          default: false
+        luxacao_ameacando_pele_vasos:
+          type: boolean
+          default: false
+        infeccao_musculoesqueletica_grave:
+          type: boolean
+          default: false
+        trauma_raquimedular_cauda_equina:
+          type: boolean
+          default: false
+        politrauma_instavel:
+          type: boolean
+          default: false
+      additionalProperties: false
+    Intervention:
+      type: object
+      properties:
+        performed:
+          type: boolean
+          default: false
+        kind:
+          type: string
+          nullable: true
+        may_change_nv:
+          type: boolean
+          default: false
+        post_nv_documented:
+          type: boolean
+          default: false
+      additionalProperties: false
+    ProcedureCheck:
+      type: object
+      properties:
+        procedure_reported:
+          type: boolean
+          default: false
+        minimum_data_complete:
+          type: boolean
+          default: true
+      additionalProperties: false
+    NeurovascularCheck:
+      type: object
+      properties:
+        baseline_documented:
+          type: boolean
+          default: false
+        post_intervention_documented:
+          type: boolean
+          default: false
+        unable_to_assess:
+          type: boolean
+          default: false
+        not_applicable:
+          type: boolean
+          default: false
+        concern_for_deficit:
+          type: boolean
+          default: false
+      additionalProperties: false

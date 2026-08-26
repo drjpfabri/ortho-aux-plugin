@@ -1,0 +1,36 @@
+TEST REPORT — Ortho Aux Plugin v0.3
+
+Date: 2026-08-26
+Runtime: Python 3.12.13
+
+Automated tests:
+
+    10 passed in 0.18s
+
+Validated by tests:
+
+- /health
+- generated /openapi.json with OpenAPI 3.1 paths
+- API key security scheme
+- legacy session flow
+- /v1 consultation flow
+- optional ORTHO_API_KEY enforcement
+- post-intervention neurovascular finalization blocker
+- possible patient mix blocker
+- safe metadata-only evidence search
+
+Manual local HTTP validation:
+
+- GET /health: 200
+- GET /docs: 200
+- GET /openapi.json: 200
+- POST /v1/consultations: 200
+- POST /v1/consultations/{consultation_id}/events: 200
+- POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
+- POST /v1/evidence/search: 200 metadata-only response
+
+Limitations:
+
+- Docker build was not executed because Docker is not installed in the local environment.
+- Render production validation is pending because no Render service exists in the connected workspace.
+- GitHub push is pending repository access/availability.
