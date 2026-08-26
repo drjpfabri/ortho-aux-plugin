@@ -29,8 +29,39 @@ Manual local HTTP validation:
 - POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
 - POST /v1/evidence/search: 200 metadata-only response
 
+Production deployment:
+
+- GitHub repository: https://github.com/drjpfabri/ortho-aux-plugin (private)
+- Render service: https://ortho-aux-plugin.onrender.com
+- Runtime: Render native Python, Python 3.12.13, free plan
+- Build command: pip install -r requirements.txt
+- Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+- ORTHO_API_KEY is configured as a Render secret and is not committed to GitHub
+- ORTHO_AUX_DB is configured as /tmp/ortho_aux.sqlite3
+
+Manual production HTTP validation:
+
+- GET /health: 200 with service version 0.3.0
+- GET /docs: 200
+- GET /openapi.json: 200, OpenAPI 3.1.0, APIKeyHeader security scheme
+- POST /v1/consultations without X-Ortho-Api-Key: 401
+- POST /v1/consultations with X-Ortho-Api-Key: 200
+- POST /v1/consultations/{consultation_id}/events: 200
+- GET /v1/consultations/{consultation_id}: 200 with one captured fact
+- POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
+- POST /v1/evidence/search: 200 metadata-only response
+
+Root cause and resolution:
+
+- The existing local repository had not been published to an accessible GitHub repository and no Render service was connected to it.
+- FastAPI startup and port binding were normalized for Render using $PORT.
+- Authentication, OpenAPI security metadata, health/docs endpoints, consultation workflow and clinical safety blockers were implemented and tested.
+- The GPT Action schema now points to the production HTTPS server.
+
 Limitations:
 
 - Docker build was not executed because Docker is not installed in the local environment.
-- Render production validation is pending because no Render service exists in the connected workspace.
-- GitHub push is pending repository access/availability.
+- The current Render service uses the native Python runtime; the Dockerfile and render.yaml remain ready for a future Blueprint/Docker migration.
+- SQLite is stored under /tmp on the free web service, so consultation data is ephemeral and can be lost on restart or redeploy.
+- The evidence endpoint is a safe metadata-only placeholder; the medical RAG/vector store is not connected yet.
+- The Render service-level health-check path was not configurable through the deployment connector used here; the public /health endpoint is working and validated.
