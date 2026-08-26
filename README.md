@@ -44,7 +44,7 @@ Uma Action de GPT exige uma URL HTTPS pública. O pacote inclui `Dockerfile`, `r
 
 Depois de a plataforma de hospedagem fornecer a URL pública, o schema estará em:
 
-`https://SEU-HOST/openapi.json`
+`https://ortho-aux-plugin.onrender.com/openapi.json`
 
 Cole `GPT_INTEGRATION_INSTRUCTIONS.md` nas instruções do GPT que vai chamar a Action.
 

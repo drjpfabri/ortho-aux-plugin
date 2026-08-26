@@ -4,7 +4,7 @@ info:
   version: 0.3.0
   description: API deterministica para estado de consulta, seguranca documental, auditoria ortopedica e roteamento de fonte.
 servers:
-  - url: https://SEU-SERVICO.onrender.com
+  - url: https://ortho-aux-plugin.onrender.com
 security:
   - OrthoApiKey: []
 paths:

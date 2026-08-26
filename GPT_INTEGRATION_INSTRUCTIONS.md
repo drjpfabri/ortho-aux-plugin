@@ -6,7 +6,7 @@ Use a Action Ortho Aux como camada obrigatória de estado e segurança.
 
 1. Publique a API em HTTPS.
 2. Importe o schema de uma destas formas:
-   - URL: `https://SEU-HOST/openapi.json`
+   - URL: `https://ortho-aux-plugin.onrender.com/openapi.json`
    - arquivo: `gpt-action.openapi.yaml`
 3. Configure autenticação como API key em cabeçalho customizado:
    - Header name: `X-Ortho-Api-Key`
