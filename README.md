@@ -1,11 +1,11 @@
-# Ortho Aux Plugin v0.3
+# Ortho Aux Plugin v0.4
 
 Versão autônoma do auxiliar ortopédico, pronta para execução e publicação.
 
 ## Já está implementado
 
 - API FastAPI;
-- persistência SQLite;
+- persistência PostgreSQL em produção e SQLite no desenvolvimento local;
 - isolamento de consulta/paciente;
 - captura com origem explícita;
 - Safety Gate;
@@ -20,6 +20,8 @@ Versão autônoma do auxiliar ortopédico, pronta para execução e publicação
 - testes automatizados.
 - endpoints `/v1` compatíveis com integração por GPT Action.
 - autenticação opcional por `X-Ortho-Api-Key` quando `ORTHO_API_KEY` estiver configurada.
+- verificação de conectividade com o banco em `/health`.
+- imutabilidade de consultas já finalizadas.
 
 ## Iniciar
 
@@ -63,9 +65,11 @@ Se `ORTHO_API_KEY` estiver definida no ambiente, envie a mesma chave no cabeçal
 
 `X-Ortho-Api-Key: SUA_CHAVE`
 
-## Limitação que não pode ser automatizada daqui
+Em produção, configure `DATABASE_URL` com a conexão PostgreSQL interna da plataforma. Sem essa variável, o serviço usa `ORTHO_AUX_DB`/SQLite apenas para desenvolvimento local.
 
-A associação de uma Action a um GPT e a criação de uma hospedagem pública exigem autenticação numa conta externa. Este pacote não possui, nem deve inventar, suas credenciais.
+## Vinculação ao GPT
+
+A API pública já está disponível no Render. A associação final da Action ao GPT deve importar `https://ortho-aux-plugin.onrender.com/openapi.json` e usar o segredo configurado no Render como API key customizada `X-Ortho-Api-Key`.
 
 ## Produção clínica
 

@@ -12,6 +12,7 @@ Use a Action Ortho Aux como camada obrigatória de estado e segurança.
    - Header name: `X-Ortho-Api-Key`
    - Secret: mesmo valor de `ORTHO_API_KEY` no servidor
 4. Teste `getApiHealth` antes de liberar a Action.
+5. Confirme que o health retorna `database: ok`; não use a Action se o banco estiver indisponível.
 
 ## Fluxo obrigatório
 
@@ -25,3 +26,4 @@ Use a Action Ortho Aux como camada obrigatória de estado e segurança.
 8. Em STAFF/RESIDÊNCIA/PROVA/PESQUISA, chame `routeOrthopedicSource` antes de recuperar a fonte clínica.
 9. PRONTUÁRIO contém apenas fatos, achados e decisões médicas validadas. SUGESTÃO IA nunca entra automaticamente.
 10. Nunca reutilize `consultation_id` depois de uma nova chamada `startOrthoConsultation`.
+11. Uma consulta finalizada é imutável. Se surgirem novos fatos, inicie uma nova consulta e documente a relação entre os atendimentos no texto clínico.

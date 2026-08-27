@@ -2,21 +2,91 @@
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException, Security
 from fastapi.security import APIKeyHeader
+from hmac import compare_digest
 from pydantic import BaseModel, Field
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    select,
+    text,
+    update,
+)
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Literal, Optional, List, Dict, Any
 from uuid import uuid4
 from pathlib import Path
-import sqlite3, json, os, time
+import json, os, time
 
 APP_NAME = "Ortho Aux Plugin"
-APP_VERSION = "0.3.0"
-DB_PATH = Path(
-    os.getenv(
-        "ORTHO_AUX_DB",
-        str(Path(__file__).resolve().parents[1] / "data" / "ortho_aux.sqlite3"),
+APP_VERSION = "0.4.0"
+
+def normalize_database_url(url: str) -> str:
+    if url.startswith("postgresql+psycopg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
+    return url
+
+
+def database_url() -> str:
+    if configured := os.getenv("DATABASE_URL"):
+        return normalize_database_url(configured)
+
+    path = Path(
+        os.getenv(
+            "ORTHO_AUX_DB",
+            str(Path(__file__).resolve().parents[1] / "data" / "ortho_aux.sqlite3"),
+        )
     )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{path}"
+
+
+DATABASE_URL = database_url()
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
 )
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+metadata = MetaData()
+
+sessions_table = Table(
+    "sessions",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("created_at", BigInteger, nullable=False),
+    Column("mode", String(32)),
+    Column("closed", Boolean, nullable=False, default=False),
+)
+
+facts_table = Table(
+    "facts",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "session_id",
+        String(36),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("field", String(200), nullable=False),
+    Column("value_json", Text, nullable=False),
+    Column("source", String(40), nullable=False),
+    Column("validated", Boolean, nullable=False, default=False),
+    Column("note", Text),
+    Column("created_at", BigInteger, nullable=False),
+)
 
 Source = Literal[
     "PACIENTE","ACOMPANHANTE","TRIAGEM/EQUIPE",
@@ -44,35 +114,8 @@ SAFETY_KEYS = {
 
 api_key_header = APIKeyHeader(name="X-Ortho-Api-Key", auto_error=False)
 
-def db():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
-
 def init_db():
-    con = db()
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS sessions(
-            id TEXT PRIMARY KEY,
-            created_at INTEGER NOT NULL,
-            mode TEXT,
-            closed INTEGER NOT NULL DEFAULT 0
-        )
-    """)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS facts(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            field TEXT NOT NULL,
-            value_json TEXT NOT NULL,
-            source TEXT NOT NULL,
-            validated INTEGER NOT NULL DEFAULT 0,
-            note TEXT,
-            created_at INTEGER NOT NULL
-        )
-    """)
-    con.commit()
-    con.close()
+    metadata.create_all(engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,7 +134,7 @@ app = FastAPI(
 
 def require_api_key(api_key: Optional[str] = Security(api_key_header)) -> None:
     expected = os.getenv("ORTHO_API_KEY")
-    if expected and api_key != expected:
+    if expected and not compare_digest(api_key or "", expected):
         raise HTTPException(status_code=401, detail="Chave de API inválida ou ausente.")
 
 class StartResponse(BaseModel):
@@ -100,11 +143,11 @@ class StartResponse(BaseModel):
     message: str
 
 class Fact(BaseModel):
-    field: str
+    field: str = Field(..., min_length=1, max_length=200)
     value: Any
     source: Source
     validated: bool = False
-    note: Optional[str] = None
+    note: Optional[str] = Field(default=None, max_length=2000)
 
 class CaptureRequest(BaseModel):
     facts: List[Fact] = Field(default_factory=list)
@@ -168,9 +211,10 @@ class EvidenceSearchRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=10)
 
 def get_session(session_id: str) -> Dict[str, Any]:
-    con = db()
-    row = con.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
-    con.close()
+    with engine.connect() as con:
+        row = con.execute(
+            select(sessions_table).where(sessions_table.c.id == session_id)
+        ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Sessão não encontrada.")
     return dict(row)
@@ -212,24 +256,49 @@ def source_mapping(domain: Domain):
     return mapping[domain]
 
 def capture_facts(session_id: str, req: CaptureRequest):
-    get_session(session_id)
-    con = db()
-    for fact in req.facts:
-        con.execute(
-            "INSERT INTO facts(session_id,field,value_json,source,validated,note,created_at) VALUES(?,?,?,?,?,?,?)",
-            (session_id, fact.field, json.dumps(fact.value, ensure_ascii=False), fact.source, 1 if fact.validated else 0, fact.note, int(time.time()))
-        )
-    if req.mode:
-        con.execute("UPDATE sessions SET mode=? WHERE id=?", (req.mode, session_id))
-    con.commit()
-    con.close()
+    session = get_session(session_id)
+    if session["closed"]:
+        raise HTTPException(status_code=409, detail="Consulta já finalizada.")
+
+    now = int(time.time())
+    rows = [
+        {
+            "session_id": session_id,
+            "field": fact.field,
+            "value_json": json.dumps(fact.value, ensure_ascii=False),
+            "source": fact.source,
+            "validated": fact.validated,
+            "note": fact.note,
+            "created_at": now,
+        }
+        for fact in req.facts
+    ]
+    with engine.begin() as con:
+        if rows:
+            con.execute(facts_table.insert(), rows)
+        if req.mode:
+            con.execute(
+                update(sessions_table)
+                .where(sessions_table.c.id == session_id)
+                .values(mode=req.mode)
+            )
     return {"status": "registrado", "message": "Registrado."}
 
 def read_session_state(session_id: str):
     s = get_session(session_id)
-    con = db()
-    rows = con.execute("SELECT field,value_json,source,validated,note,created_at FROM facts WHERE session_id=? ORDER BY id", (session_id,)).fetchall()
-    con.close()
+    with engine.connect() as con:
+        rows = con.execute(
+            select(
+                facts_table.c.field,
+                facts_table.c.value_json,
+                facts_table.c.source,
+                facts_table.c.validated,
+                facts_table.c.note,
+                facts_table.c.created_at,
+            )
+            .where(facts_table.c.session_id == session_id)
+            .order_by(facts_table.c.id)
+        ).mappings().all()
     facts = [{
         "field": r["field"], "value": json.loads(r["value_json"]), "source": r["source"],
         "validated": bool(r["validated"]), "note": r["note"], "created_at": r["created_at"]
@@ -243,14 +312,29 @@ def audit_case(session_id: str, req: FinalizeRequest):
 
 def finalize_case(session_id: str, req: FinalizeRequest):
     s = get_session(session_id)
+    if s["closed"]:
+        raise HTTPException(status_code=409, detail="Consulta já finalizada.")
     alerts, blockers = run_gate(req)
     if blockers:
         raise HTTPException(status_code=409, detail={"message": "Finalização bloqueada.", "blockers": blockers, "alerts": alerts})
-    con = db()
-    rows = con.execute("SELECT field,value_json,source,validated,note,created_at FROM facts WHERE session_id=? ORDER BY id", (session_id,)).fetchall()
-    con.execute("UPDATE sessions SET closed=1 WHERE id=?", (session_id,))
-    con.commit()
-    con.close()
+    with engine.begin() as con:
+        rows = con.execute(
+            select(
+                facts_table.c.field,
+                facts_table.c.value_json,
+                facts_table.c.source,
+                facts_table.c.validated,
+                facts_table.c.note,
+                facts_table.c.created_at,
+            )
+            .where(facts_table.c.session_id == session_id)
+            .order_by(facts_table.c.id)
+        ).mappings().all()
+        con.execute(
+            update(sessions_table)
+            .where(sessions_table.c.id == session_id)
+            .values(closed=True)
+        )
     facts = [{
         "field": r["field"], "value": json.loads(r["value_json"]), "source": r["source"],
         "validated": bool(r["validated"]), "note": r["note"], "created_at": r["created_at"]
@@ -270,19 +354,29 @@ def root():
 
 @app.get("/health", operation_id="getApiHealth", tags=["system"])
 def health():
-    return {"ok": True, "service": APP_NAME, "version": APP_VERSION}
+    try:
+        with engine.connect() as con:
+            con.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Banco de dados indisponível.") from exc
+    return {"ok": True, "service": APP_NAME, "version": APP_VERSION, "database": "ok"}
 
-@app.post("/session/start", response_model=StartResponse, operation_id="startOrthoSession", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.post("/session/start", response_model=StartResponse, operation_id="startOrthoSession", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 @app.post("/v1/consultations", response_model=StartResponse, operation_id="startOrthoConsultation", tags=["consultations"], dependencies=[Depends(require_api_key)])
 def start_session():
     session_id = str(uuid4())
-    con = db()
-    con.execute("INSERT INTO sessions(id, created_at, mode, closed) VALUES(?,?,?,0)", (session_id, int(time.time()), None))
-    con.commit()
-    con.close()
+    with engine.begin() as con:
+        con.execute(
+            sessions_table.insert().values(
+                id=session_id,
+                created_at=int(time.time()),
+                mode=None,
+                closed=False,
+            )
+        )
     return {"session_id": session_id, "consultation_id": session_id, "message": "Consulta iniciada. Documentação clínica ativa."}
 
-@app.post("/capture", operation_id="captureOrthoFacts", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.post("/capture", operation_id="captureOrthoFacts", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def capture(req: CaptureRequest, x_session_id: str = Header(...)):
     return capture_facts(x_session_id, req)
 
@@ -290,7 +384,7 @@ def capture(req: CaptureRequest, x_session_id: str = Header(...)):
 def capture_consultation_event(consultation_id: str, req: CaptureRequest):
     return capture_facts(consultation_id, req)
 
-@app.get("/session/state", operation_id="getOrthoSessionState", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.get("/session/state", operation_id="getOrthoSessionState", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def session_state(x_session_id: str = Header(...)):
     return read_session_state(x_session_id)
 
@@ -298,7 +392,7 @@ def session_state(x_session_id: str = Header(...)):
 def consultation_state(consultation_id: str):
     return read_session_state(consultation_id)
 
-@app.post("/audit", operation_id="auditOrthoCase", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.post("/audit", operation_id="auditOrthoCase", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def audit(req: FinalizeRequest, x_session_id: str = Header(...)):
     return audit_case(x_session_id, req)
 
@@ -306,7 +400,7 @@ def audit(req: FinalizeRequest, x_session_id: str = Header(...)):
 def audit_consultation(consultation_id: str, req: FinalizeRequest):
     return audit_case(consultation_id, req)
 
-@app.post("/finalize", operation_id="finalizeOrthoCase", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.post("/finalize", operation_id="finalizeOrthoCase", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def finalize(req: FinalizeRequest, x_session_id: str = Header(...)):
     return finalize_case(x_session_id, req)
 
@@ -314,7 +408,7 @@ def finalize(req: FinalizeRequest, x_session_id: str = Header(...)):
 def finalize_consultation(consultation_id: str, req: FinalizeRequest):
     return finalize_case(consultation_id, req)
 
-@app.post("/source-route", operation_id="routeOrthoSource", tags=["legacy"], dependencies=[Depends(require_api_key)])
+@app.post("/source-route", operation_id="routeOrthoSource", tags=["legacy"], dependencies=[Depends(require_api_key)], include_in_schema=False)
 def source_route(req: RouteRequest):
     return source_mapping(req.domain)
 

@@ -4,7 +4,7 @@ tmp = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
 os.environ["ORTHO_AUX_DB"] = tmp.name
 
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import app, normalize_database_url
 
 client = TestClient(app)
 
@@ -19,6 +19,7 @@ def test_health():
         r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["ok"] is True
+    assert r.json()["database"] == "ok"
 
 def test_openapi_has_v1_paths_and_security_scheme():
     with client:
@@ -27,7 +28,13 @@ def test_openapi_has_v1_paths_and_security_scheme():
     spec = r.json()
     assert "/v1/consultations" in spec["paths"]
     assert "/v1/evidence/search" in spec["paths"]
+    assert "/session/start" not in spec["paths"]
     assert "APIKeyHeader" in spec["components"]["securitySchemes"]
+
+def test_render_postgres_url_uses_psycopg_driver():
+    assert normalize_database_url("postgresql://user:pass@db/ortho") == (
+        "postgresql+psycopg://user:pass@db/ortho"
+    )
 
 def test_start_exact_message():
     with client:
@@ -108,6 +115,24 @@ def test_finalize_ok():
         r = client.post("/finalize", headers={"X-Session-Id": sid}, json={})
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+
+def test_finalized_consultation_is_immutable():
+    sid = new_session()
+    with client:
+        assert client.post(f"/v1/consultations/{sid}/finalize", json={}).status_code == 200
+        second_finalize = client.post(f"/v1/consultations/{sid}/finalize", json={})
+        late_event = client.post(
+            f"/v1/consultations/{sid}/events",
+            json={
+                "facts": [{
+                    "field": "late_fact",
+                    "value": "must not be stored",
+                    "source": "SUGESTÃO IA"
+                }]
+            },
+        )
+    assert second_finalize.status_code == 409
+    assert late_event.status_code == 409
 
 def test_evidence_search_is_safe_metadata_only():
     with client:

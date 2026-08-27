@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ortho Aux Plugin Action
-  version: 0.3.0
+  version: 0.4.0
   description: API deterministica para estado de consulta, seguranca documental, auditoria ortopedica e roteamento de fonte.
 servers:
   - url: https://ortho-aux-plugin.onrender.com
@@ -182,6 +182,8 @@ components:
       properties:
         field:
           type: string
+          minLength: 1
+          maxLength: 200
           description: Campo clinico informado, sem inferir normalidade por ausencia.
         value:
           description: Valor explicitamente fornecido.
@@ -192,6 +194,7 @@ components:
           default: false
         note:
           type: string
+          maxLength: 2000
           nullable: true
       additionalProperties: false
     Source:

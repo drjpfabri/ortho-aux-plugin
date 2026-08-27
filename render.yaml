@@ -1,14 +1,24 @@
+databases:
+  - name: ortho-aux-db
+    plan: free
+    region: virginia
+
 services:
   - type: web
     name: ortho-aux-plugin
-    runtime: docker
+    runtime: python
+    region: virginia
     plan: free
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
-      - key: ORTHO_AUX_DB
-        value: /app/data/ortho_aux.sqlite3
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ortho-aux-db
+          property: connectionString
       - key: ORTHO_API_KEY
         sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.13
