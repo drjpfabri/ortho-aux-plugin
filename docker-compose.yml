@@ -10,3 +10,6 @@ services:
     environment:
       - PORT=8000
       - ORTHO_AUX_DB=/app/data/ortho_aux.sqlite3
+      - ORTHO_ENV=development
+      - ORTHO_ALLOWED_DATA_CLASSIFICATIONS=synthetic
+      - ORTHO_DATA_RETENTION_HOURS=168

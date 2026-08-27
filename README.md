@@ -1,80 +1,108 @@
-# Ortho Aux Plugin v0.4
+# Ortho Aux Plugin v0.5
 
-Versão autônoma do auxiliar ortopédico, pronta para execução e publicação.
+Backend FastAPI do alpha sintético do Robô de Apoio Ortopédico.
 
-## Já está implementado
+> Perfil atual: avaliação técnica com casos exclusivamente sintéticos. Não enviar dados de pacientes. O serviço não diagnostica, não prescreve e não substitui avaliação ou validação médica.
 
-- API FastAPI;
-- persistência PostgreSQL em produção e SQLite no desenvolvimento local;
-- isolamento de consulta/paciente;
-- captura com origem explícita;
-- Safety Gate;
-- hard-stop de finalização;
-- bloqueio por NV pós-intervenção ausente;
-- auditoria de mistura de paciente e lateralidade;
-- recuperação do estado da consulta;
-- roteamento de fonte;
-- Docker / Docker Compose;
-- inicialização automática para Windows, macOS e Linux;
-- arquivos de deploy para Render e Railway;
-- testes automatizados.
-- endpoints `/v1` compatíveis com integração por GPT Action.
-- autenticação opcional por `X-Ortho-Api-Key` quando `ORTHO_API_KEY` estiver configurada.
-- verificação de conectividade com o banco em `/health`.
-- imutabilidade de consultas já finalizadas.
+## Estado funcional
 
-## Iniciar
+- API HTTPS no Render;
+- PostgreSQL em produção e SQLite no desenvolvimento;
+- autenticação por `X-Ortho-Api-Key`, obrigatória em produção;
+- isolamento e imutabilidade de consultas;
+- proveniência obrigatória entre relato, achado, interpretação e sugestão de IA;
+- bloqueio heurístico de identificadores diretos e erros de validação higienizados;
+- Safety Gate versionado;
+- avaliação neurovascular basal explícita e bloqueio pós-intervenção;
+- resposta documentada obrigatória diante de alerta prioritário;
+- revisão pediátrica específica;
+- retenção padrão de 168 horas e exclusão sob demanda;
+- métricas agregadas sem texto clínico;
+- 50 cenários sintéticos do Gate e testes de API;
+- CI no GitHub;
+- schema OpenAPI sincronizado para GPT Action;
+- busca de evidência ainda limitada a roteamento e metadados.
 
-### macOS/Linux
-`./start.sh`
+## Limites do alpha
 
-### Windows
-Execute `start.bat`.
+- O banco gratuito expira em **2026-09-26** e não possui backup/PITR.
+- Há uma chave global, sem identidade individual, RBAC ou MFA.
+- O bloqueio de identificadores é defesa complementar, não garantia de anonimização.
+- O Safety Gate depende de informação estruturada e não substitui revisão clínica.
+- O RAG/vector store não está conectado.
+- A Action ainda precisa ser importada e testada no Preview do GPT.
 
-O script usa Docker automaticamente quando disponível; caso contrário, cria um ambiente Python e inicia o serviço.
+Esses limites bloqueiam uso com pacientes ou expansão para beta clínico.
+
+## Iniciar localmente
+
+### Python
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+cp .env.example .env
+./start.sh
+```
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Endereços locais:
 
 - API: `http://127.0.0.1:8000`
 - Docs: `http://127.0.0.1:8000/docs`
 - OpenAPI: `http://127.0.0.1:8000/openapi.json`
 - Health: `http://127.0.0.1:8000/health`
 
-## Uso como Action de um GPT
+## Testes
 
-O serviço já publica o próprio schema OpenAPI em `/openapi.json`.
+```bash
+python -m pytest -q
+python scripts/export_openapi.py
+```
 
-Uma Action de GPT exige uma URL HTTPS pública. O pacote inclui `Dockerfile`, `render.yaml` e `railway.json`, portanto não exige alterações de código para hospedagem.
+O segundo comando regenera `gpt-action.openapi.yaml`. A suíte falha se o schema estático divergir do contrato publicado.
 
-Depois de a plataforma de hospedagem fornecer a URL pública, o schema estará em:
+## Fluxo mínimo da API
 
-`https://ortho-aux-plugin.onrender.com/openapi.json`
+1. Iniciar consulta com classificação e atestado explícitos:
 
-Cole `GPT_INTEGRATION_INSTRUCTIONS.md` nas instruções do GPT que vai chamar a Action.
+```json
+{
+  "data_classification": "synthetic",
+  "purpose": "technical_test",
+  "attested_no_direct_identifiers": true
+}
+```
 
-Operações principais expostas no OpenAPI:
+2. Capturar somente fatos sintéticos, sempre com `kind` e `source` compatíveis.
+3. Executar `/audit` com contexto e estado neurovascular explícitos.
+4. Corrigir todos os bloqueadores.
+5. Finalizar apenas como `draft_ready`, mantendo revisão humana.
+6. Registrar feedback numérico sem texto livre.
+7. Excluir a consulta ao terminar quando a retenção não for necessária.
 
-- `getApiHealth`: `GET /health`
-- `getApiInfo`: `GET /`
-- `startOrthoConsultation`: `POST /v1/consultations`
-- `captureOrthoConsultationEvent`: `POST /v1/consultations/{consultation_id}/events`
-- `auditOrthoConsultation`: `POST /v1/consultations/{consultation_id}/audit`
-- `finalizeOrthoConsultation`: `POST /v1/consultations/{consultation_id}/finalize`
-- `routeOrthopedicSource`: `POST /v1/evidence/source-route`
-- `searchOrthopedicEvidence`: `POST /v1/evidence/search`
+## GPT Action
 
-Se `ORTHO_API_KEY` estiver definida no ambiente, envie a mesma chave no cabeçalho:
+Produção:
 
-`X-Ortho-Api-Key: SUA_CHAVE`
+- servidor: `https://ortho-aux-plugin.onrender.com`
+- schema por URL: `https://ortho-aux-plugin.onrender.com/openapi.json`
+- schema versionado: `gpt-action.openapi.yaml`
+- autenticação: API key em cabeçalho customizado `X-Ortho-Api-Key`
 
-Em produção, configure `DATABASE_URL` com a conexão PostgreSQL interna da plataforma. Sem essa variável, o serviço usa `ORTHO_AUX_DB`/SQLite apenas para desenvolvimento local.
+Consulte `GPT_INTEGRATION_INSTRUCTIONS.md` antes de importar. A documentação oficial da OpenAI orienta testar a Action no Preview após configurar autenticação e schema.
 
-O banco gratuito atual é apenas para avaliação: expira em 30 dias e não possui backup. Não use dados identificáveis de pacientes até migrar para infraestrutura com backup/PITR e concluir a revisão de LGPD, segurança, retenção e governança institucional.
+## Plano de 90 dias
 
-## Vinculação ao GPT
-
-A API pública já está disponível no Render. A associação final da Action ao GPT deve importar `https://ortho-aux-plugin.onrender.com/openapi.json` e usar o segredo configurado no Render como API key customizada `X-Ortho-Api-Key`.
-
-## Produção clínica
-
-Para dados clínicos identificáveis, configure a infraestrutura segundo as obrigações legais e institucionais aplicáveis. Evite logs de dados identificáveis, use controle de acesso, criptografia e política de retenção.
-
-O serviço não prescreve, não inventa achados e não substitui decisão/validação médica.
+- `docs/MUSASHI_90_DAY_EXECUTION.md`
+- `docs/EVALUATION_PROTOCOL.md`
+- `docs/RISK_REGISTER.md`
+- `docs/RESPONSIBILITY_MATRIX.md`
+- `docs/INCIDENT_RUNBOOK.md`
+- `docs/DECISION_LOG.md`

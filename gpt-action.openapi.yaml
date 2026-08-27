@@ -1,376 +1,781 @@
 openapi: 3.1.0
 info:
-  title: Ortho Aux Plugin Action
-  version: 0.4.0
-  description: API deterministica para estado de consulta, seguranca documental, auditoria ortopedica e roteamento de fonte.
+  title: Ortho Aux Plugin
+  description: Auxiliar determinístico para piloto sintético de segurança, documentação, auditoria e roteamento
+    ortopédico. Não substitui avaliação médica presencial.
+  version: 0.5.0
 servers:
-  - url: https://ortho-aux-plugin.onrender.com
-security:
-  - OrthoApiKey: []
+- url: https://ortho-aux-plugin.onrender.com
 paths:
   /:
     get:
+      tags:
+      - system
+      summary: Root
       operationId: getApiInfo
-      summary: Informacoes basicas da API
-      security: []
       responses:
-        "200":
-          description: API pronta
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /health:
     get:
+      tags:
+      - system
+      summary: Health
       operationId: getApiHealth
-      summary: Health check publico
-      security: []
       responses:
-        "200":
-          description: Servico saudavel
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /v1/consultations:
     post:
+      tags:
+      - consultations
+      summary: Start Consultation
       operationId: startOrthoConsultation
-      summary: Inicia nova consulta ortopedica isolada
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartConsultationRequest'
+        required: true
       responses:
-        "200":
-          description: Consulta iniciada
+        '200':
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StartResponse"
-        "401":
-          description: Chave de API ausente ou invalida
-  /v1/consultations/{consultation_id}:
-    get:
-      operationId: getOrthoConsultationState
-      summary: Recupera estado da consulta
-      parameters:
-        - $ref: "#/components/parameters/ConsultationId"
-      responses:
-        "200":
-          description: Estado atual
-        "401":
-          description: Chave de API ausente ou invalida
-        "404":
-          description: Consulta nao encontrada
+                $ref: '#/components/schemas/StartResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
   /v1/consultations/{consultation_id}/events:
     post:
+      tags:
+      - consultations
+      summary: Capture Consultation Event
       operationId: captureOrthoConsultationEvent
-      summary: Registra fatos explicitamente fornecidos
+      security:
+      - APIKeyHeader: []
       parameters:
-        - $ref: "#/components/parameters/ConsultationId"
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CaptureRequest"
+              $ref: '#/components/schemas/CaptureRequest'
       responses:
-        "200":
-          description: Fatos registrados
-        "401":
-          description: Chave de API ausente ou invalida
-        "404":
-          description: Consulta nao encontrada
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/consultations/{consultation_id}:
+    get:
+      tags:
+      - consultations
+      summary: Consultation State
+      operationId: getOrthoConsultationState
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - consultations
+      summary: Remove Consultation
+      operationId: deleteOrthoConsultation
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/consultations/{consultation_id}/audit:
     post:
+      tags:
+      - consultations
+      summary: Audit Consultation
       operationId: auditOrthoConsultation
-      summary: Aplica Safety Gate sem finalizar a consulta
+      security:
+      - APIKeyHeader: []
       parameters:
-        - $ref: "#/components/parameters/ConsultationId"
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/FinalizeRequest"
+              $ref: '#/components/schemas/FinalizeRequest'
       responses:
-        "200":
-          description: Alertas, bloqueadores e permissao de finalizacao
-        "401":
-          description: Chave de API ausente ou invalida
-        "404":
-          description: Consulta nao encontrada
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/consultations/{consultation_id}/finalize:
     post:
+      tags:
+      - consultations
+      summary: Finalize Consultation
       operationId: finalizeOrthoConsultation
-      summary: Finaliza consulta somente se nao houver bloqueadores
+      security:
+      - APIKeyHeader: []
       parameters:
-        - $ref: "#/components/parameters/ConsultationId"
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/FinalizeRequest"
+              $ref: '#/components/schemas/FinalizeRequest'
       responses:
-        "200":
-          description: Finalizacao liberada para validacao medica
-        "401":
-          description: Chave de API ausente ou invalida
-        "404":
-          description: Consulta nao encontrada
-        "409":
-          description: Finalizacao bloqueada por pendencia clinica ou documental
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/consultations/{consultation_id}/pilot-feedback:
+    post:
+      tags:
+      - pilot
+      summary: Pilot Feedback
+      operationId: recordOrthoPilotFeedback
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: consultation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Consultation Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PilotFeedbackRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/pilot/metrics:
+    get:
+      tags:
+      - pilot
+      summary: Pilot Metrics
+      operationId: getOrthoPilotMetrics
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - APIKeyHeader: []
   /v1/evidence/source-route:
     post:
+      tags:
+      - evidence
+      summary: V1 Source Route
       operationId: routeOrthopedicSource
-      summary: Indica a fonte ortopedica preferencial por dominio
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RouteRequest"
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
       responses:
-        "200":
-          description: Fonte preferencial e usos
-        "401":
-          description: Chave de API ausente ou invalida
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
   /v1/evidence/search:
     post:
+      tags:
+      - evidence
+      summary: Evidence Search
       operationId: searchOrthopedicEvidence
-      summary: Busca inicial segura de evidencia ortopedica
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EvidenceSearchRequest"
+              $ref: '#/components/schemas/EvidenceSearchRequest'
+        required: true
       responses:
-        "200":
-          description: Roteamento e metadados; sem redistribuir trechos protegidos
-        "401":
-          description: Chave de API ausente ou invalida
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
 components:
-  securitySchemes:
-    OrthoApiKey:
-      type: apiKey
-      in: header
-      name: X-Ortho-Api-Key
-  parameters:
-    ConsultationId:
-      name: consultation_id
-      in: path
-      required: true
-      schema:
-        type: string
-      description: Identificador retornado por startOrthoConsultation.
   schemas:
-    StartResponse:
-      type: object
-      properties:
-        session_id:
-          type: string
-        consultation_id:
-          type: string
-        message:
-          type: string
     CaptureRequest:
-      type: object
       properties:
-        mode:
-          $ref: "#/components/schemas/Mode"
         facts:
-          type: array
           items:
-            $ref: "#/components/schemas/Fact"
+            $ref: '#/components/schemas/Fact'
+          type: array
+          maxItems: 50
+          title: Facts
+        mode:
+          anyOf:
+          - type: string
+            enum:
+            - STAFF
+            - PLANTÃO
+            - RESIDÊNCIA
+            - PROVA
+            - PRONTUÁRIO
+            - SISREG
+            - IMAGEM
+            - EXAME
+            - CIRURGIA
+            - CASO
+            - PACIENTE
+            - AUDITOR
+          - type: 'null'
+          title: Mode
       additionalProperties: false
-    Fact:
       type: object
-      required:
-        - field
-        - value
-        - source
+      title: CaptureRequest
+    ClinicalContext:
       properties:
-        field:
+        case_type:
           type: string
-          minLength: 1
-          maxLength: 200
-          description: Campo clinico informado, sem inferir normalidade por ausencia.
-        value:
-          description: Valor explicitamente fornecido.
-        source:
-          $ref: "#/components/schemas/Source"
-        validated:
+          enum:
+          - extremity_trauma
+          - axial_trauma
+          - non_traumatic
+          - education_only
+          title: Case Type
+        patient_group:
+          type: string
+          enum:
+          - adult
+          - pediatric
+          title: Patient Group
+        pediatric_specific_review_documented:
           type: boolean
+          title: Pediatric Specific Review Documented
           default: false
-        note:
-          type: string
-          maxLength: 2000
-          nullable: true
       additionalProperties: false
-    Source:
-      type: string
-      enum:
-        - PACIENTE
-        - ACOMPANHANTE
-        - TRIAGEM/EQUIPE
-        - ACHADO MÉDICO
-        - INTERPRETAÇÃO MÉDICA
-        - SUGESTÃO IA
-    Mode:
-      type: string
-      enum:
-        - STAFF
-        - PLANTÃO
-        - RESIDÊNCIA
-        - PROVA
-        - PRONTUÁRIO
-        - SISREG
-        - IMAGEM
-        - EXAME
-        - CIRURGIA
-        - CASO
-        - PACIENTE
-        - AUDITOR
-    Domain:
-      type: string
-      enum:
-        - trauma_adulto
-        - trauma_pediatrico
-        - anatomia
-        - semiologia
-        - trauma_brasil
-        - politrauma
-        - terminologia
-        - tumor
-        - medico_legal
-        - angulos
-    RouteRequest:
       type: object
       required:
-        - domain
-      properties:
-        domain:
-          $ref: "#/components/schemas/Domain"
-      additionalProperties: false
+      - case_type
+      - patient_group
+      title: ClinicalContext
     EvidenceSearchRequest:
-      type: object
-      required:
-        - query
       properties:
         query:
           type: string
-          minLength: 3
           maxLength: 500
+          minLength: 3
+          title: Query
         domain:
-          $ref: "#/components/schemas/Domain"
+          anyOf:
+          - type: string
+            enum:
+            - trauma_adulto
+            - trauma_pediatrico
+            - anatomia
+            - semiologia
+            - trauma_brasil
+            - politrauma
+            - terminologia
+            - tumor
+            - medico_legal
+            - angulos
+          - type: 'null'
+          title: Domain
         limit:
           type: integer
-          minimum: 1
-          maximum: 10
+          maximum: 10.0
+          minimum: 1.0
+          title: Limit
           default: 5
       additionalProperties: false
-    FinalizeRequest:
       type: object
+      required:
+      - query
+      title: EvidenceSearchRequest
+    Fact:
       properties:
-        identity:
-          $ref: "#/components/schemas/IdentityCheck"
-        safety:
-          $ref: "#/components/schemas/SafetyFlags"
-        intervention:
-          $ref: "#/components/schemas/Intervention"
-        procedure:
-          $ref: "#/components/schemas/ProcedureCheck"
+        field:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Field
+        value:
+          title: Value
+        source:
+          type: string
+          enum:
+          - PACIENTE
+          - ACOMPANHANTE
+          - TRIAGEM/EQUIPE
+          - ACHADO MÉDICO
+          - INTERPRETAÇÃO MÉDICA
+          - SUGESTÃO IA
+          title: Source
+        kind:
+          type: string
+          enum:
+          - RELATO
+          - ACHADO
+          - INTERPRETAÇÃO
+          - SUGESTÃO_IA
+          title: Kind
+        validated:
+          type: boolean
+          title: Validated
+          default: false
+        note:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - field
+      - value
+      - source
+      - kind
+      title: Fact
+    FinalizeRequest:
+      properties:
+        context:
+          $ref: '#/components/schemas/ClinicalContext'
         neurovascular:
-          $ref: "#/components/schemas/NeurovascularCheck"
+          $ref: '#/components/schemas/NeurovascularCheck'
+        safety:
+          $ref: '#/components/schemas/SafetyFlags'
+        identity:
+          $ref: '#/components/schemas/IdentityCheck'
+        safety_response:
+          $ref: '#/components/schemas/SafetyResponse'
+        intervention:
+          $ref: '#/components/schemas/Intervention'
+        procedure:
+          $ref: '#/components/schemas/ProcedureCheck'
         critical_field_pending:
           type: boolean
+          title: Critical Field Pending
           default: false
         unvalidated_ai_suggestion_as_decision:
           type: boolean
+          title: Unvalidated Ai Suggestion As Decision
           default: false
       additionalProperties: false
-    IdentityCheck:
       type: object
+      required:
+      - context
+      - neurovascular
+      - safety
+      title: FinalizeRequest
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IdentityCheck:
       properties:
         possible_patient_mix:
           type: boolean
+          title: Possible Patient Mix
           default: false
         laterality_conflict:
           type: boolean
+          title: Laterality Conflict
           default: false
         details:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Details
       additionalProperties: false
-    SafetyFlags:
       type: object
-      properties:
-        choque:
-          type: boolean
-          default: false
-        hemorragia:
-          type: boolean
-          default: false
-        isquemia_lesao_vascular:
-          type: boolean
-          default: false
-        deficit_neurologico_novo_progressivo:
-          type: boolean
-          default: false
-        sindrome_compartimental:
-          type: boolean
-          default: false
-        fratura_exposta:
-          type: boolean
-          default: false
-        amputacao_esmagamento:
-          type: boolean
-          default: false
-        luxacao_ameacando_pele_vasos:
-          type: boolean
-          default: false
-        infeccao_musculoesqueletica_grave:
-          type: boolean
-          default: false
-        trauma_raquimedular_cauda_equina:
-          type: boolean
-          default: false
-        politrauma_instavel:
-          type: boolean
-          default: false
-      additionalProperties: false
+      title: IdentityCheck
     Intervention:
-      type: object
       properties:
         performed:
           type: boolean
+          title: Performed
           default: false
         kind:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Kind
         may_change_nv:
           type: boolean
+          title: May Change Nv
           default: false
         post_nv_documented:
           type: boolean
+          title: Post Nv Documented
           default: false
       additionalProperties: false
-    ProcedureCheck:
       type: object
-      properties:
-        procedure_reported:
-          type: boolean
-          default: false
-        minimum_data_complete:
-          type: boolean
-          default: true
-      additionalProperties: false
+      title: Intervention
     NeurovascularCheck:
-      type: object
       properties:
         baseline_documented:
           type: boolean
+          title: Baseline Documented
           default: false
         post_intervention_documented:
           type: boolean
+          title: Post Intervention Documented
           default: false
         unable_to_assess:
           type: boolean
+          title: Unable To Assess
           default: false
         not_applicable:
           type: boolean
+          title: Not Applicable
           default: false
         concern_for_deficit:
           type: boolean
+          title: Concern For Deficit
+          default: false
+        distal_pulse_present:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Distal Pulse Present
+      additionalProperties: false
+      type: object
+      title: NeurovascularCheck
+    PilotFeedbackRequest:
+      properties:
+        disposition:
+          type: string
+          enum:
+          - accepted
+          - edited
+          - rejected
+          title: Disposition
+        documentation_seconds:
+          type: integer
+          maximum: 14400.0
+          minimum: 1.0
+          title: Documentation Seconds
+        corrections_count:
+          type: integer
+          maximum: 500.0
+          minimum: 0.0
+          title: Corrections Count
+          default: 0
+        false_alerts_count:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: False Alerts Count
+          default: 0
+        technical_failure:
+          type: boolean
+          title: Technical Failure
+          default: false
+        privacy_incident:
+          type: boolean
+          title: Privacy Incident
           default: false
       additionalProperties: false
+      type: object
+      required:
+      - disposition
+      - documentation_seconds
+      title: PilotFeedbackRequest
+    ProcedureCheck:
+      properties:
+        procedure_reported:
+          type: boolean
+          title: Procedure Reported
+          default: false
+        minimum_data_complete:
+          type: boolean
+          title: Minimum Data Complete
+          default: true
+      additionalProperties: false
+      type: object
+      title: ProcedureCheck
+    RouteRequest:
+      properties:
+        domain:
+          type: string
+          enum:
+          - trauma_adulto
+          - trauma_pediatrico
+          - anatomia
+          - semiologia
+          - trauma_brasil
+          - politrauma
+          - terminologia
+          - tumor
+          - medico_legal
+          - angulos
+          title: Domain
+      additionalProperties: false
+      type: object
+      required:
+      - domain
+      title: RouteRequest
+    SafetyFlags:
+      properties:
+        choque:
+          type: boolean
+          title: Choque
+        hemorragia:
+          type: boolean
+          title: Hemorragia
+        isquemia_lesao_vascular:
+          type: boolean
+          title: Isquemia Lesao Vascular
+        risco_lesao_vascular_oculta:
+          type: boolean
+          title: Risco Lesao Vascular Oculta
+        deficit_neurologico_novo_progressivo:
+          type: boolean
+          title: Deficit Neurologico Novo Progressivo
+        sindrome_compartimental:
+          type: boolean
+          title: Sindrome Compartimental
+        fratura_exposta:
+          type: boolean
+          title: Fratura Exposta
+        amputacao_esmagamento:
+          type: boolean
+          title: Amputacao Esmagamento
+        luxacao_ameacando_pele_vasos:
+          type: boolean
+          title: Luxacao Ameacando Pele Vasos
+        infeccao_musculoesqueletica_grave:
+          type: boolean
+          title: Infeccao Musculoesqueletica Grave
+        trauma_raquimedular_cauda_equina:
+          type: boolean
+          title: Trauma Raquimedular Cauda Equina
+        politrauma_instavel:
+          type: boolean
+          title: Politrauma Instavel
+      additionalProperties: false
+      type: object
+      required:
+      - choque
+      - hemorragia
+      - isquemia_lesao_vascular
+      - risco_lesao_vascular_oculta
+      - deficit_neurologico_novo_progressivo
+      - sindrome_compartimental
+      - fratura_exposta
+      - amputacao_esmagamento
+      - luxacao_ameacando_pele_vasos
+      - infeccao_musculoesqueletica_grave
+      - trauma_raquimedular_cauda_equina
+      - politrauma_instavel
+      title: SafetyFlags
+    SafetyResponse:
+      properties:
+        urgent_actions_documented:
+          type: boolean
+          title: Urgent Actions Documented
+          default: false
+      additionalProperties: false
+      type: object
+      title: SafetyResponse
+    StartConsultationRequest:
+      properties:
+        data_classification:
+          type: string
+          enum:
+          - synthetic
+          - deidentified
+          title: Data Classification
+        purpose:
+          type: string
+          enum:
+          - technical_test
+          - clinical_validation
+          - training
+          title: Purpose
+        attested_no_direct_identifiers:
+          type: boolean
+          title: Attested No Direct Identifiers
+      additionalProperties: false
+      type: object
+      required:
+      - data_classification
+      - purpose
+      - attested_no_direct_identifiers
+      title: StartConsultationRequest
+    StartResponse:
+      properties:
+        session_id:
+          type: string
+          title: Session Id
+        consultation_id:
+          type: string
+          title: Consultation Id
+        data_classification:
+          type: string
+          enum:
+          - synthetic
+          - deidentified
+          title: Data Classification
+        expires_at:
+          type: integer
+          title: Expires At
+        message:
+          type: string
+          title: Message
+      additionalProperties: false
+      type: object
+      required:
+      - session_id
+      - consultation_id
+      - data_classification
+      - expires_at
+      - message
+      title: StartResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    APIKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Ortho-Api-Key
