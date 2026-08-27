@@ -25,6 +25,8 @@ Durante os 90 dias:
 | Autenticação servidor-servidor | concluída | `X-Ortho-Api-Key` |
 | Safety Gate | concluído em engenharia | suíte sintética automatizada |
 | 50 casos sintéticos | concluído em automação | `tests/test_safety_scenarios.py` |
+| Fluxo HTTP v0.5 em produção | concluído | autenticação, captura, auditoria, finalização e exclusão em `TEST_REPORT.txt` |
+| Logs sem corpo clínico | concluído na revisão atual | registros do Render contêm somente rota e status |
 | Bloqueio de identificadores | concluído como defesa complementar | testes de privacidade e erros higienizados |
 | Retenção e exclusão | concluídas para o alpha | expiração em 168 horas e endpoint `DELETE` |
 | Métricas sem texto clínico | concluídas | feedback e agregação do piloto |

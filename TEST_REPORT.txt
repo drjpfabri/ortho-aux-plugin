@@ -1,71 +1,119 @@
-TEST REPORT - Ortho Aux Plugin v0.4
+TEST REPORT - Ortho Aux Plugin v0.5
 
 Date: 2026-08-27
-Runtime: Python 3.12.13
+Runtime validated: Python 3.12
+Production commit: b989432a9509c1a6d7281e16d413d774865b03de
+Render deploy: dep-da7rf1jl550s73cucreg (live)
 
-Automated tests:
+Executive result:
 
-    12 passed in 0.34s
+- The Musashi day-7 engineering gate is complete except for importing and testing
+  the Action inside the GPT editor.
+- The current release is an internal synthetic alpha, not a clinical-production
+  system and not authorized for identifiable or real patient data.
+- Every clinical output remains a draft and requires physician review.
 
-Validated locally:
+Automated validation in a clean Python 3.12 environment:
 
-- /health checks application and database connectivity
-- generated /openapi.json is OpenAPI 3.1 and exposes only the 9 Action paths
-- APIKeyHeader security scheme
-- legacy endpoints remain callable but are hidden from the GPT Action schema
-- /v1 consultation creation, capture, state, audit and finalization
-- ORTHO_API_KEY enforcement and constant-time comparison
-- finalized consultations are immutable
-- post-intervention neurovascular finalization blocker
-- possible patient mix blocker
-- safe metadata-only evidence search
-- Render PostgreSQL URLs are normalized for the psycopg driver
+- 72 tests passed, including exactly 50 synthetic safety scenarios
+- Ruff static analysis passed
+- pip dependency consistency check passed
+- Python bytecode compilation passed
+- render.yaml and the remaining YAML files parsed successfully
+- generated OpenAPI 3.1 contract matches gpt-action.openapi.yaml
+- no duplicate operationId values in the GPT Action contract
+
+Local HTTP smoke test with a real Uvicorn process:
+
+- GET /health: 200, database=ok, profile=synthetic_pilot
+- POST /v1/consultations without authentication: 401
+- authenticated synthetic consultation start and fact capture: 200
+- compartment-syndrome warning remains active when distal pulse is present
+- direct identifier input is rejected with 422 and is not echoed
+- explicit consultation deletion succeeds
+- application logs contain method, path, status and request ID, not request bodies
 
 Production deployment:
 
 - GitHub repository: https://github.com/drjpfabri/ortho-aux-plugin (private)
 - Render service: https://ortho-aux-plugin.onrender.com
-- Runtime: Render native Python, Python 3.12.13, free plan
-- Build command: pip install -r requirements.txt
+- Runtime: Render native Python, free web-service plan
 - Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 - Health check path: /health
-- Database: Render PostgreSQL 18 in Virginia, connected through the private internal URL
-- ORTHO_API_KEY and DATABASE_URL are Render secrets and are not committed to GitHub
+- Database: Render PostgreSQL 18 in Virginia, connected through the private URL
+- ORTHO_API_KEY and DATABASE_URL remain Render secrets and are not committed
+- Production is fail-closed without both the API key and PostgreSQL
+- Allowed data classification is explicitly limited to synthetic
+- Default consultation retention is 168 hours
 
-Manual production HTTP validation:
+Production HTTP validation on v0.5.0:
 
-- GET /health: 200, API 0.4.0, database=ok
+- GET /health: 200, ok=true, database=ok, profile=synthetic_pilot
 - GET /docs: 200
-- GET /openapi.json: 200, OpenAPI 3.1.0, APIKeyHeader
+- GET /openapi.json: 200, OpenAPI 3.1.0, API version 0.5.0
 - POST /v1/consultations without X-Ortho-Api-Key: 401
-- POST /v1/consultations with X-Ortho-Api-Key: 200
-- POST /v1/consultations/{consultation_id}/events: 200
-- GET /v1/consultations/{consultation_id}: 200 with the captured fact
-- POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
-- POST /v1/evidence/search: 200 metadata-only response
-- Render error-log query after deployment: no errors
+- POST /v1/consultations with X-Ortho-Api-Key and synthetic attestation: 200
+- POST /v1/consultations/{id}/events: 200, two facts with explicit provenance
+- direct-identifier attempt: 422, submitted identifier absent from the error body
+- POST /v1/consultations/{id}/audit: 200, can_finalize=false, one alert and
+  one blocker for compartment syndrome without a documented urgent response
+- the blocker remains active with distal_pulse_present=true
+- POST /v1/evidence/search: 200, zero excerpts and metadata-only routing
+- POST /v1/consultations/{id}/finalize: 200, status=draft_ready and
+  human_review_required=true
+- pilot feedback and aggregate metrics: 200, contains_clinical_text=false
+- DELETE /v1/consultations/{id}: 200; subsequent GET: 404
+- Render application log review: only routes and status codes, no clinical body
+- Render error-log query: no application errors in the reviewed period
 
-Persistence proof:
+Persistence and database validation:
 
-- A synthetic consultation was created in PostgreSQL with one non-patient test fact.
-- The web service was deliberately redeployed twice.
-- The same consultation ID and fact were recovered after both redeploys.
-- This confirms that consultation state no longer depends on the ephemeral web-service filesystem.
+- A prior synthetic consultation was recovered after two deliberate redeploys,
+  proving that state does not depend on the web service's ephemeral filesystem.
+- The v0.5 production flow completed against PostgreSQL and /health reported
+  database=ok before and after the test.
+- The synthetic consultation used for this validation was deleted at the end.
+- A separate read-only connection through the external Render endpoint could not
+  be established because that endpoint closed the TLS session. Render's own MCP
+  query showed the same limitation. This did not affect the service's private
+  PostgreSQL connection, but direct database observability remains an open
+  operations item.
 
 Root cause and resolution:
 
 - The original repository and Render service were disconnected.
-- The original SQLite database lived on an ephemeral free-service filesystem.
+- The original SQLite database used an ephemeral free-service filesystem.
+- Safety patches discussed in chat were not permanently encoded or regression-tested.
+- The old contract did not enforce explicit data classification, provenance,
+  complete safety review, retention or privacy-safe metrics.
 - FastAPI startup and port binding were normalized for Render using $PORT.
-- SQLAlchemy now supports PostgreSQL in production and SQLite for local development.
-- Authentication, OpenAPI metadata, health checks, consultation workflow and clinical safety blockers were implemented and tested.
-- The GPT Action schema points to the production HTTPS server.
+- PostgreSQL persistence, fail-closed production configuration, API-key
+  authentication, request limits and sanitized validation errors were implemented.
+- All 12 Safety Gate flags are mandatory; missing data no longer means normal.
+- Baseline and post-intervention neurovascular checks, pediatric review and urgent
+  response documentation now block finalization when required.
+- Reported information cannot be stored as a physical finding, and AI suggestions
+  cannot arrive prevalidated.
+- The static GPT Action schema is generated from and tested against the application.
 
-Current limitations and safety boundary:
+Current limitations and release boundary:
 
-- The free PostgreSQL database expires on 2026-09-26 and has no backups.
+- The free PostgreSQL database expires on 2026-09-26 and has no backups or PITR.
+- One global API key does not provide individual identity, RBAC or per-user revocation.
+- The GPT Action has not yet been imported and exercised in GPT Preview.
+- The 50 automated cases still require signed human clinical review.
+- Legal, privacy/DPO and institutional owners remain to be formally named.
+- Identifier detection is defense in depth, not proof of anonymization.
+- The evidence endpoint remains a metadata-only placeholder; no medical RAG or
+  vector store is connected.
 - The free web service can cold-start after inactivity.
-- Do not store identifiable patient data on this evaluation infrastructure.
-- Before clinical production, use a paid database with backup/PITR and complete LGPD, security, retention and institutional governance review.
-- The evidence endpoint remains a metadata-only placeholder; the medical RAG/vector store is not connected.
-- Docker was hardened for non-root execution, but the image was not built locally because Docker is not installed.
+- Docker was hardened for non-root execution, but the image was not built locally
+  because Docker is not installed on this machine.
+
+Decision:
+
+- Engineering status: READY FOR SYNTHETIC INTERNAL ALPHA.
+- Clinical-production status: NOT AUTHORIZED.
+- Next mandatory action: import gpt-action.openapi.yaml into the intended GPT,
+  configure the existing API key as X-Ortho-Api-Key, and run one synthetic Preview
+  flow before declaring the day-7 gate closed.

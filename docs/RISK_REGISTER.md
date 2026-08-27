@@ -16,6 +16,7 @@ Versão: 1.0 - 2026-08-27
 | R-010 | 50 testes de software não equivalem a validação clínica | crítico | casos sintéticos rastreáveis | dois revisores clínicos e adjudicação de divergências | aberto |
 | R-011 | Logs da plataforma são externos ao código | alto | aplicação não registra corpos; erros 422 são higienizados | auditoria periódica de logs e contrato do fornecedor | aberto |
 | R-012 | Chats descrevem outros MVPs mais amplos que não integram este repositório | alto | repositório canônico declarado | tratar este backend como única fonte implantada | controlado |
+| R-013 | Consulta externa direta ao PostgreSQL não foi validada por limitação TLS do endpoint/cliente | médio | conexão privada da API saudável e fluxo HTTP validado | definir acesso de observabilidade suportado pelo Render antes do beta | aberto |
 
 ## Regra de atualização
 
