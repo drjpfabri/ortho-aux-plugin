@@ -7,8 +7,8 @@ Render deploy: dep-da7rf1jl550s73cucreg (live)
 
 Executive result:
 
-- The Musashi day-7 engineering gate is complete except for importing and testing
-  the Action inside the GPT editor.
+- The Musashi day-7 engineering gate is complete, including an authenticated
+  GPT Action round trip in the intended GPT's Preview.
 - The current release is an internal synthetic alpha, not a clinical-production
   system and not authorized for identifiable or real patient data.
 - Every clinical output remains a draft and requires physician review.
@@ -66,6 +66,21 @@ Production HTTP validation on v0.5.0:
 - Render application log review: only routes and status codes, no clinical body
 - Render error-log query: no application errors in the reviewed period
 
+GPT Action validation:
+
+- the production OpenAPI contract was imported from /openapi.json into the private
+  Robô de Apoio Ortopédico GPT
+- authentication was saved as a custom API-key header named X-Ortho-Api-Key
+- the secret was copied directly from Render, was not printed, and the local
+  clipboard was cleared immediately after configuration
+- Preview called getApiHealth and Render returned GET /health: 200
+- Preview generated the required synthetic attestation payload and Render returned
+  POST /v1/consultations: 200, proving authenticated Action access
+- the test consultation was removed through deleteOrthoConsultation and Render
+  returned DELETE /v1/consultations/{id}: 200
+- only one-time outbound-call permission was used during validation; persistent
+  "always allow" permission was not enabled
+
 Persistence and database validation:
 
 - A prior synthetic consultation was recovered after two deliberate redeploys,
@@ -100,7 +115,8 @@ Current limitations and release boundary:
 
 - The free PostgreSQL database expires on 2026-09-26 and has no backups or PITR.
 - One global API key does not provide individual identity, RBAC or per-user revocation.
-- The GPT Action has not yet been imported and exercised in GPT Preview.
+- Each Action call can still require explicit user permission in ChatGPT because
+  persistent "always allow" access was intentionally not enabled.
 - The 50 automated cases still require signed human clinical review.
 - Legal, privacy/DPO and institutional owners remain to be formally named.
 - Identifier detection is defense in depth, not proof of anonymization.
@@ -114,6 +130,6 @@ Decision:
 
 - Engineering status: READY FOR SYNTHETIC INTERNAL ALPHA.
 - Clinical-production status: NOT AUTHORIZED.
-- Next mandatory action: import gpt-action.openapi.yaml into the intended GPT,
-  configure the existing API key as X-Ortho-Api-Key, and run one synthetic Preview
-  flow before declaring the day-7 gate closed.
+- Next mandatory actions: obtain signed human clinical review of the 50 scenarios,
+  name the governance owners, and replace or migrate the expiring free database
+  before any expansion beyond the synthetic internal alpha.

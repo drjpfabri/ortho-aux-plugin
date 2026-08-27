@@ -16,3 +16,4 @@ Versão: 1.0 - 2026-08-27
 | D-010 | beta real exige identidade individual, backup/PITR e governança | chave global e banco gratuito não bastam | portão do dia 30 bloqueia expansão até conclusão |
 | D-011 | todas as flags do Safety Gate são obrigatórias | campo ausente não pode significar normalidade | clientes devem revisar explicitamente cada hard stop |
 | D-012 | consultas legadas sem classificação são apagadas no primeiro boot v0.5 | não há atestado de que pertençam ao piloto sintético | somente registros v0.5 classificados permanecem |
+| D-013 | a Action foi vinculada ao GPT privado com permissão externa por chamada | manter controle humano explícito também no transporte | `sempre permitir` não foi habilitado durante a validação |

@@ -9,7 +9,7 @@ Versão: 1.0 - 2026-08-27
 | R-003 | Detecção heurística de identificadores não garante anonimização | crítico | ambiente aceita somente `synthetic` | manter proibição de dados reais | controlado no alpha |
 | R-004 | Safety Gate depende de flags estruturadas fornecidas pelo chamador | alto | contrato obrigatório e 50 testes | revisão clínica e testes ponta a ponta no GPT | aberto |
 | R-005 | RAG não está conectado | médio | resposta declara metadata-only | não alegar evidência recuperada; validar RAG separadamente | aceito no alpha |
-| R-006 | Action ainda não foi testada no Preview do GPT | alto | schema OpenAPI versionado e sincronizado | importar, autenticar e executar fluxo sintético | aberto |
+| R-006 | Regressão futura da Action após mudança de schema ou autenticação | alto | schema sincronizado e fluxo sintético autenticado aprovado no Preview | repetir teste ponta a ponta após toda mudança contratual | controlado |
 | R-007 | Não há aprovação jurídica/LGPD institucional | crítico | proibição de dados reais | obter revisão formal antes de qualquer beta clínico | aberto |
 | R-008 | Não há monitoramento externo nem alerta automático | médio | health check do Render e verificação manual | definir monitoramento antes do beta | aberto |
 | R-009 | Serviço gratuito pode ter cold start | médio | health check e uso controlado | medir latência; escolher plano adequado ao piloto | aberto |

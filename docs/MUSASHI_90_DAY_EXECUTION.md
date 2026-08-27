@@ -30,7 +30,7 @@ Durante os 90 dias:
 | Bloqueio de identificadores | concluído como defesa complementar | testes de privacidade e erros higienizados |
 | Retenção e exclusão | concluídas para o alpha | expiração em 168 horas e endpoint `DELETE` |
 | Métricas sem texto clínico | concluídas | feedback e agregação do piloto |
-| GPT Action importada no GPT | pendente | exige configuração no editor e teste em Preview |
+| GPT Action importada no GPT | concluída | health, criação sintética autenticada e exclusão testados no Preview |
 | Revisão clínica humana dos 50 casos | pendente | não substituída pelos testes de software |
 | RBAC/MFA por usuário | pendente | bloqueia beta com múltiplos usuários reais |
 | Revisão jurídica/LGPD institucional | pendente | bloqueia qualquer dado real |
