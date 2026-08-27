@@ -2,6 +2,7 @@ databases:
   - name: ortho-aux-db
     plan: free
     region: virginia
+    postgresMajorVersion: "18"
 
 services:
   - type: web

@@ -1,33 +1,25 @@
-TEST REPORT — Ortho Aux Plugin v0.3
+TEST REPORT - Ortho Aux Plugin v0.4
 
-Date: 2026-08-26
+Date: 2026-08-27
 Runtime: Python 3.12.13
 
 Automated tests:
 
-    10 passed in 0.18s
+    12 passed in 0.34s
 
-Validated by tests:
+Validated locally:
 
-- /health
-- generated /openapi.json with OpenAPI 3.1 paths
-- API key security scheme
-- legacy session flow
-- /v1 consultation flow
-- optional ORTHO_API_KEY enforcement
+- /health checks application and database connectivity
+- generated /openapi.json is OpenAPI 3.1 and exposes only the 9 Action paths
+- APIKeyHeader security scheme
+- legacy endpoints remain callable but are hidden from the GPT Action schema
+- /v1 consultation creation, capture, state, audit and finalization
+- ORTHO_API_KEY enforcement and constant-time comparison
+- finalized consultations are immutable
 - post-intervention neurovascular finalization blocker
 - possible patient mix blocker
 - safe metadata-only evidence search
-
-Manual local HTTP validation:
-
-- GET /health: 200
-- GET /docs: 200
-- GET /openapi.json: 200
-- POST /v1/consultations: 200
-- POST /v1/consultations/{consultation_id}/events: 200
-- POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
-- POST /v1/evidence/search: 200 metadata-only response
+- Render PostgreSQL URLs are normalized for the psycopg driver
 
 Production deployment:
 
@@ -36,32 +28,44 @@ Production deployment:
 - Runtime: Render native Python, Python 3.12.13, free plan
 - Build command: pip install -r requirements.txt
 - Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-- ORTHO_API_KEY is configured as a Render secret and is not committed to GitHub
-- ORTHO_AUX_DB is configured as /tmp/ortho_aux.sqlite3
+- Health check path: /health
+- Database: Render PostgreSQL 18 in Virginia, connected through the private internal URL
+- ORTHO_API_KEY and DATABASE_URL are Render secrets and are not committed to GitHub
 
 Manual production HTTP validation:
 
-- GET /health: 200 with service version 0.3.0
+- GET /health: 200, API 0.4.0, database=ok
 - GET /docs: 200
-- GET /openapi.json: 200, OpenAPI 3.1.0, APIKeyHeader security scheme
+- GET /openapi.json: 200, OpenAPI 3.1.0, APIKeyHeader
 - POST /v1/consultations without X-Ortho-Api-Key: 401
 - POST /v1/consultations with X-Ortho-Api-Key: 200
 - POST /v1/consultations/{consultation_id}/events: 200
-- GET /v1/consultations/{consultation_id}: 200 with one captured fact
+- GET /v1/consultations/{consultation_id}: 200 with the captured fact
 - POST /v1/consultations/{consultation_id}/audit: 200 with can_finalize=false when post-intervention NV is missing
 - POST /v1/evidence/search: 200 metadata-only response
+- Render error-log query after deployment: no errors
+
+Persistence proof:
+
+- A synthetic consultation was created in PostgreSQL with one non-patient test fact.
+- The web service was deliberately redeployed twice.
+- The same consultation ID and fact were recovered after both redeploys.
+- This confirms that consultation state no longer depends on the ephemeral web-service filesystem.
 
 Root cause and resolution:
 
-- The existing local repository had not been published to an accessible GitHub repository and no Render service was connected to it.
+- The original repository and Render service were disconnected.
+- The original SQLite database lived on an ephemeral free-service filesystem.
 - FastAPI startup and port binding were normalized for Render using $PORT.
-- Authentication, OpenAPI security metadata, health/docs endpoints, consultation workflow and clinical safety blockers were implemented and tested.
-- The GPT Action schema now points to the production HTTPS server.
+- SQLAlchemy now supports PostgreSQL in production and SQLite for local development.
+- Authentication, OpenAPI metadata, health checks, consultation workflow and clinical safety blockers were implemented and tested.
+- The GPT Action schema points to the production HTTPS server.
 
-Limitations:
+Current limitations and safety boundary:
 
-- Docker build was not executed because Docker is not installed in the local environment.
-- The current Render service uses the native Python runtime; the Dockerfile and render.yaml remain ready for a future Blueprint/Docker migration.
-- SQLite is stored under /tmp on the free web service, so consultation data is ephemeral and can be lost on restart or redeploy.
-- The evidence endpoint is a safe metadata-only placeholder; the medical RAG/vector store is not connected yet.
-- The Render service-level health-check path was not configurable through the deployment connector used here; the public /health endpoint is working and validated.
+- The free PostgreSQL database expires on 2026-09-26 and has no backups.
+- The free web service can cold-start after inactivity.
+- Do not store identifiable patient data on this evaluation infrastructure.
+- Before clinical production, use a paid database with backup/PITR and complete LGPD, security, retention and institutional governance review.
+- The evidence endpoint remains a metadata-only placeholder; the medical RAG/vector store is not connected.
+- Docker was hardened for non-root execution, but the image was not built locally because Docker is not installed.

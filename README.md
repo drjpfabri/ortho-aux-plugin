@@ -67,6 +67,8 @@ Se `ORTHO_API_KEY` estiver definida no ambiente, envie a mesma chave no cabeçal
 
 Em produção, configure `DATABASE_URL` com a conexão PostgreSQL interna da plataforma. Sem essa variável, o serviço usa `ORTHO_AUX_DB`/SQLite apenas para desenvolvimento local.
 
+O banco gratuito atual é apenas para avaliação: expira em 30 dias e não possui backup. Não use dados identificáveis de pacientes até migrar para infraestrutura com backup/PITR e concluir a revisão de LGPD, segurança, retenção e governança institucional.
+
 ## Vinculação ao GPT
 
 A API pública já está disponível no Render. A associação final da Action ao GPT deve importar `https://ortho-aux-plugin.onrender.com/openapi.json` e usar o segredo configurado no Render como API key customizada `X-Ortho-Api-Key`.
