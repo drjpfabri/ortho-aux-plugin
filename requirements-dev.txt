@@ -1,5 +1,5 @@
 -r requirements.txt
-pytest>=8,<9
+pytest>=9.1.1,<10
 httpx2>=2,<3
 PyYAML>=6,<7
 ruff>=0.12,<1
