@@ -34,5 +34,8 @@ jobs:
       - name: Check Python quality
         run: ruff check app tests scripts
 
+      - name: Validate governance controls
+        run: python scripts/validate_governance.py
+
       - name: Run synthetic safety suite
         run: python -m pytest -q

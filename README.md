@@ -1,4 +1,4 @@
-# Ortho Aux Plugin v0.5
+# Ortho Aux Plugin v0.6
 
 Backend FastAPI do alpha sintético do Robô de Apoio Ortopédico.
 
@@ -21,6 +21,9 @@ Backend FastAPI do alpha sintético do Robô de Apoio Ortopédico.
 - 50 cenários sintéticos do Gate e testes de API;
 - CI no GitHub;
 - schema OpenAPI sincronizado para GPT Action;
+- política de governança versionada e validada no CI;
+- endpoint autenticado de prontidão em `/v1/governance/status`;
+- suspensão automática de novas consultas quando a revisão de governança vence;
 - busca de evidência ainda limitada a roteamento e metadados.
 
 ## Limites do alpha
@@ -30,7 +33,8 @@ Backend FastAPI do alpha sintético do Robô de Apoio Ortopédico.
 - O bloqueio de identificadores é defesa complementar, não garantia de anonimização.
 - O Safety Gate depende de informação estruturada e não substitui revisão clínica.
 - O RAG/vector store não está conectado.
-- A Action ainda precisa ser importada e testada no Preview do GPT.
+- A revisão de governança vigente vence em **2026-09-03**.
+- A Action foi importada e testada, mas continua privada e com permissão por chamada.
 
 Esses limites bloqueiam uso com pacientes ou expansão para beta clínico.
 
@@ -63,10 +67,11 @@ Endereços locais:
 
 ```bash
 python -m pytest -q
+python scripts/validate_governance.py
 python scripts/export_openapi.py
 ```
 
-O segundo comando regenera `gpt-action.openapi.yaml`. A suíte falha se o schema estático divergir do contrato publicado.
+O validador impede divergência entre política, código e Render. O último comando regenera `gpt-action.openapi.yaml`; a suíte falha se o schema estático divergir do contrato publicado.
 
 ## Fluxo mínimo da API
 
@@ -87,6 +92,8 @@ O segundo comando regenera `gpt-action.openapi.yaml`. A suíte falha se o schema
 6. Registrar feedback numérico sem texto livre.
 7. Excluir a consulta ao terminar quando a retenção não for necessária.
 
+Antes do fluxo, consulte `/v1/governance/status`. `clinical_use_authorized` e `patient_derived_data_authorized` devem permanecer `false` neste estágio. Se `accepting_new_consultations=false`, não tente contornar o bloqueio.
+
 ## GPT Action
 
 Produção:
@@ -106,3 +113,8 @@ Consulte `GPT_INTEGRATION_INSTRUCTIONS.md` antes de importar. A documentação o
 - `docs/RESPONSIBILITY_MATRIX.md`
 - `docs/INCIDENT_RUNBOOK.md`
 - `docs/DECISION_LOG.md`
+- `docs/DATA_GOVERNANCE_POLICY.md`
+- `docs/DATA_FLOW_REGISTER.md`
+- `docs/PRELIMINARY_RIPD.md`
+- `docs/CHANGE_CONTROL.md`
+- `governance/control-register.yaml`

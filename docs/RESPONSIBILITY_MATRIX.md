@@ -1,6 +1,6 @@
 # Matriz de responsabilidades
 
-Versão: 1.0 - 2026-08-27
+Versão: 1.1 - 2026-08-28
 
 `R` executa, `A` responde pela decisão, `C` é consultado e `I` é informado.
 
@@ -13,6 +13,9 @@ Versão: 1.0 - 2026-08-27
 | Incidente técnico | I | A/R | C | C | I |
 | Incidente de privacidade | I | R | I | A/R | C |
 | Contrato e propriedade intelectual | C | I | I | C | A/R |
+| RIPD, base legal e direitos do titular | C | C | I | A/R | C |
+| Enquadramento regulatório/SaMD | A | C | C | C | A/R |
+| Renovação da governança | A | R | C | C | C |
 | Decisão de avançar portão | A | R | C | C | C |
 | Suspensão do piloto | A/R | R | R | R | C |
 
@@ -26,5 +29,14 @@ Versão: 1.0 - 2026-08-27
 | Revisor clínico independente 2 | A DEFINIR | bloqueia aprovação clínica dos 50 casos |
 | Privacidade/DPO | A DEFINIR | bloqueia dados desidentificados ou reais |
 | Jurídico institucional | A DEFINIR | bloqueia contrato de beta |
+| Responsável regulatório/qualidade | A DEFINIR | bloqueia definição de uso pretendido clínico |
 
 Uma ferramenta de IA não ocupa papel legal, clínico ou institucional no RACI.
+
+## Regra de decisão
+
+- O Product Owner clínico pode manter ou suspender o alpha interno sintético.
+- Nenhuma pessoa isolada pode liberar dado derivado de paciente.
+- Liberação de `deidentified` exige aprovação registrada dos responsáveis clínico, técnico, privacidade e jurídico/regulatório, com validade definida.
+- Papel marcado como `A DEFINIR` equivale a voto ausente e mantém o portão bloqueado.
+- Conflito de interesse de revisor clínico deve ser declarado e registrado.

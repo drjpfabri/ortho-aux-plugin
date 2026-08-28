@@ -1,0 +1,159 @@
+schema_version: 1
+policy_version: "2026-08-28.1"
+as_of: "2026-08-28"
+review_due: "2026-09-03"
+
+current_release:
+  profile: synthetic_alpha
+  decision: engineering_ready_restricted
+  allowed_data_classifications:
+    - synthetic
+  clinical_use_authorized: false
+  patient_derived_data_authorized: false
+  frontend_integration_authorized: false
+  rag_enabled: false
+
+release_gates:
+  synthetic_alpha:
+    authorized: true
+    blockers: []
+  external_alpha:
+    authorized: false
+    blockers:
+      - GOV-005
+      - GOV-006
+      - GOV-012
+  deidentified_validation:
+    authorized: false
+    blockers:
+      - GOV-004
+      - GOV-005
+      - GOV-006
+      - GOV-007
+      - GOV-008
+      - GOV-009
+      - GOV-010
+      - GOV-011
+      - GOV-012
+  clinical_use:
+    authorized: false
+    blockers:
+      - GOV-004
+      - GOV-005
+      - GOV-006
+      - GOV-007
+      - GOV-008
+      - GOV-009
+      - GOV-010
+      - GOV-011
+      - GOV-012
+
+controls:
+  - id: GOV-001
+    domain: data_scope
+    criticality: critical
+    status: implemented
+    statement: Production accepts synthetic data only.
+    evidence:
+      - app/main.py
+      - render.yaml
+      - tests/test_plugin.py
+  - id: GOV-002
+    domain: privacy
+    criticality: critical
+    status: implemented
+    statement: Direct identifiers are rejected and validation errors are sanitized.
+    evidence:
+      - app/main.py
+      - tests/test_plugin.py
+  - id: GOV-003
+    domain: minimization
+    criticality: high
+    status: implemented
+    statement: Consultation retention is limited and deletion is available on demand.
+    evidence:
+      - app/main.py
+      - docs/DATA_GOVERNANCE_POLICY.md
+  - id: GOV-004
+    domain: authorization
+    criticality: critical
+    status: partial
+    statement: Governance approval is versioned and expires, but no patient-derived data approval exists.
+    evidence:
+      - app/main.py
+      - docs/CHANGE_CONTROL.md
+  - id: GOV-005
+    domain: accountability
+    criticality: critical
+    status: open
+    statement: Technical, privacy and legal owners are not all formally appointed.
+    evidence:
+      - docs/RESPONSIBILITY_MATRIX.md
+  - id: GOV-006
+    domain: clinical_safety
+    criticality: critical
+    status: open
+    statement: Independent human review of the 50 synthetic safety cases is pending.
+    evidence:
+      - docs/EVALUATION_PROTOCOL.md
+  - id: GOV-007
+    domain: lgpd
+    criticality: critical
+    status: open
+    statement: Legal basis, controller/operator roles and formal RIPD approval are pending.
+    evidence:
+      - docs/PRELIMINARY_RIPD.md
+      - docs/DATA_FLOW_REGISTER.md
+  - id: GOV-008
+    domain: access_control
+    criticality: critical
+    status: open
+    statement: Individual identity, RBAC, MFA and per-user revocation are absent.
+    evidence:
+      - docs/RISK_REGISTER.md
+  - id: GOV-009
+    domain: resilience
+    criticality: critical
+    status: open
+    statement: Current free database has no managed backup or point-in-time recovery.
+    evidence:
+      - docs/RISK_REGISTER.md
+  - id: GOV-010
+    domain: regulatory
+    criticality: critical
+    status: open
+    statement: Intended use and Brazilian SaMD regulatory classification require formal review.
+    evidence:
+      - docs/DATA_GOVERNANCE_POLICY.md
+  - id: GOV-011
+    domain: suppliers
+    criticality: critical
+    status: open
+    statement: Contracts, subprocessors, retention and international transfer terms require review.
+    evidence:
+      - docs/DATA_FLOW_REGISTER.md
+  - id: GOV-012
+    domain: change_control
+    criticality: high
+    status: partial
+    statement: Change artifacts and CI exist; protected-branch enforcement is not yet confirmed.
+    evidence:
+      - docs/CHANGE_CONTROL.md
+      - .github/workflows/ci.yml
+      - .github/CODEOWNERS
+      - .github/dependabot.yml
+      - .github/pull_request_template.md
+      - SECURITY.md
+  - id: GOV-013
+    domain: system_boundary
+    criticality: high
+    status: implemented
+    statement: The private synthetic frontend is not connected to this backend.
+    evidence:
+      - docs/DATA_FLOW_REGISTER.md
+
+official_references:
+  - https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm
+  - https://www.gov.br/anpd/pt-br/canais_atendimento/agente-de-tratamento/comunicado-de-incidente-de-seguranca-cis
+  - https://www.gov.br/anvisa/pt-br/centraisdeconteudo/publicacoes/produtos-para-a-saude/manuais/software-como-dispositivo-medico-perguntas-e-respostas
+  - https://developers.openai.com/api/docs/guides/your-data

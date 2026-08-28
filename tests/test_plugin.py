@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+import pytest
 import yaml
 
 tmp = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
@@ -8,17 +9,25 @@ os.environ["ORTHO_AUX_DB"] = tmp.name
 os.environ["ORTHO_ENV"] = "test"
 os.environ["ORTHO_ALLOWED_DATA_CLASSIFICATIONS"] = "synthetic"
 os.environ["ORTHO_DATA_RETENTION_HOURS"] = "168"
+os.environ["ORTHO_GOVERNANCE_PROFILE"] = "synthetic_alpha"
+os.environ["ORTHO_GOVERNANCE_REVIEW_DUE"] = "2099-12-31"
+os.environ["ORTHO_GOVERNANCE_APPROVED"] = "false"
 
 from fastapi.testclient import TestClient
 from sqlalchemy import update
 
 from app.main import (
+    GOVERNANCE_POLICY_VERSION,
+    GOVERNANCE_REFERENCE_CONTROLS,
     SAFETY_KEYS,
     app,
     consultation_metadata_table,
+    deidentified_governance_errors,
     engine,
+    governance_status,
     normalize_database_url,
     purge_unclassified_and_expired_sessions,
+    validate_runtime_configuration,
 )
 
 client = TestClient(app)
@@ -48,7 +57,9 @@ def test_health_and_security_headers():
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert response.json()["database"] == "ok"
-    assert response.json()["profile"] == "synthetic_pilot"
+    assert response.json()["profile"] == "synthetic_alpha"
+    assert response.json()["accepting_new_consultations"] is True
+    assert response.json()["clinical_use_authorized"] is False
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["x-request-id"]
@@ -63,6 +74,7 @@ def test_openapi_has_v1_paths_and_security_scheme():
     assert "/v1/consultations" in spec["paths"]
     assert "/v1/evidence/search" in spec["paths"]
     assert "/v1/pilot/metrics" in spec["paths"]
+    assert "/v1/governance/status" in spec["paths"]
     assert "/session/start" not in spec["paths"]
     assert "APIKeyHeader" in spec["components"]["securitySchemes"]
     operation_ids = [
@@ -112,6 +124,62 @@ def test_deidentified_data_is_blocked_before_governance_approval():
     with client:
         response = client.post("/v1/consultations", json=payload)
     assert response.status_code == 403
+
+
+def test_governance_status_is_explicit_and_fail_closed():
+    with client:
+        response = client.get("/v1/governance/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["policy_version"] == GOVERNANCE_POLICY_VERSION
+    assert body["current_profile"] == "synthetic_alpha"
+    assert body["review_current"] is True
+    assert body["accepting_new_consultations"] is True
+    assert body["clinical_use_authorized"] is False
+    assert body["identifiable_data_supported"] is False
+    assert body["patient_derived_data_authorized"] is False
+    assert body["allowed_data_classifications"] == ["synthetic"]
+    assert body["frontend_integration_authorized"] is False
+    assert body["rag_enabled"] is False
+    assert "GOV-008" in body["next_stage_blockers"]
+
+
+def test_expired_governance_review_blocks_new_consultations(monkeypatch):
+    monkeypatch.setenv("ORTHO_GOVERNANCE_REVIEW_DUE", "2000-01-01")
+    with client:
+        health = client.get("/health")
+        response = client.post("/v1/consultations", json=START_PAYLOAD)
+    assert health.status_code == 200
+    assert health.json()["accepting_new_consultations"] is False
+    assert response.status_code == 503
+    assert "governança vencida" in response.text
+
+
+def test_deidentified_requires_full_governance_bundle(monkeypatch):
+    monkeypatch.setenv("ORTHO_ALLOWED_DATA_CLASSIFICATIONS", "synthetic,deidentified")
+    monkeypatch.setenv("ORTHO_GOVERNANCE_APPROVED", "true")
+    assert "ORTHO_GOVERNANCE_APPROVAL_REF" in deidentified_governance_errors()
+    with pytest.raises(RuntimeError, match="controles ausentes ou inválidos"):
+        validate_runtime_configuration()
+
+
+def test_complete_deidentified_bundle_is_still_not_clinical_authorization(monkeypatch):
+    monkeypatch.setenv("ORTHO_ALLOWED_DATA_CLASSIFICATIONS", "synthetic,deidentified")
+    monkeypatch.setenv("ORTHO_GOVERNANCE_PROFILE", "deidentified_validation")
+    monkeypatch.setenv("ORTHO_GOVERNANCE_APPROVED", "true")
+    monkeypatch.setenv("ORTHO_GOVERNANCE_EXPIRES_ON", "2099-12-31")
+    monkeypatch.setenv("ORTHO_IDENTITY_MODE", "individual_rbac")
+    monkeypatch.setenv("ORTHO_BACKUP_MODE", "managed_pitr")
+    monkeypatch.setenv("ORTHO_CHANGE_CONTROL_MODE", "protected_checks")
+    for variable_name in GOVERNANCE_REFERENCE_CONTROLS:
+        monkeypatch.setenv(variable_name, f"test-reference-{variable_name.lower()}")
+
+    validate_runtime_configuration()
+    status = governance_status()
+    assert status["patient_derived_data_authorized"] is True
+    assert status["clinical_use_authorized"] is False
+    assert status["identifiable_data_supported"] is False
+    assert status["next_stage_blockers"] == []
 
 
 def test_capture_and_state_with_explicit_provenance():

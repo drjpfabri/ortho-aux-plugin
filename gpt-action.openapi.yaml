@@ -3,7 +3,7 @@ info:
   title: Ortho Aux Plugin
   description: Auxiliar determinístico para piloto sintético de segurança, documentação, auditoria e roteamento
     ortopédico. Não substitui avaliação médica presencial.
-  version: 0.5.0
+  version: 0.6.0
 servers:
 - url: https://ortho-aux-plugin.onrender.com
 paths:
@@ -31,6 +31,21 @@ paths:
           content:
             application/json:
               schema: {}
+  /v1/governance/status:
+    get:
+      tags:
+      - governance
+      summary: Get Governance Status
+      operationId: getOrthoGovernanceStatus
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernanceStatusResponse'
+      security:
+      - APIKeyHeader: []
   /v1/consultations:
     post:
       tags:
@@ -476,6 +491,70 @@ components:
       - neurovascular
       - safety
       title: FinalizeRequest
+    GovernanceStatusResponse:
+      properties:
+        policy_version:
+          type: string
+          title: Policy Version
+        current_profile:
+          type: string
+          enum:
+          - synthetic_alpha
+          - deidentified_validation
+          title: Current Profile
+        review_due:
+          type: string
+          title: Review Due
+        review_current:
+          type: boolean
+          title: Review Current
+        accepting_new_consultations:
+          type: boolean
+          title: Accepting New Consultations
+        clinical_use_authorized:
+          type: boolean
+          title: Clinical Use Authorized
+        identifiable_data_supported:
+          type: boolean
+          title: Identifiable Data Supported
+        patient_derived_data_authorized:
+          type: boolean
+          title: Patient Derived Data Authorized
+        allowed_data_classifications:
+          items:
+            type: string
+            enum:
+            - synthetic
+            - deidentified
+          type: array
+          title: Allowed Data Classifications
+        frontend_integration_authorized:
+          type: boolean
+          title: Frontend Integration Authorized
+        rag_enabled:
+          type: boolean
+          title: Rag Enabled
+        next_stage_blockers:
+          items:
+            type: string
+          type: array
+          title: Next Stage Blockers
+      additionalProperties: false
+      type: object
+      required:
+      - policy_version
+      - current_profile
+      - review_due
+      - review_current
+      - accepting_new_consultations
+      - clinical_use_authorized
+      - identifiable_data_supported
+      - patient_derived_data_authorized
+      - allowed_data_classifications
+      - frontend_integration_authorized
+      - rag_enabled
+      - next_stage_blockers
+      title: GovernanceStatusResponse
     HTTPValidationError:
       properties:
         detail:

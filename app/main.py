@@ -5,6 +5,7 @@ import re
 import time
 import unicodedata
 from contextlib import asynccontextmanager, suppress
+from datetime import date, datetime, timezone
 from hmac import compare_digest
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -36,10 +37,24 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 
 APP_NAME = "Ortho Aux Plugin"
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 GATE_VERSION = "2026-08-27.1"
+GOVERNANCE_POLICY_VERSION = "2026-08-28.1"
 DEFAULT_RETENTION_HOURS = 168
 MAX_BODY_BYTES = 65_536
+
+GOVERNANCE_REFERENCE_CONTROLS = {
+    "ORTHO_GOVERNANCE_APPROVAL_REF": "GOV-004",
+    "ORTHO_CLINICAL_OWNER_REF": "GOV-005",
+    "ORTHO_TECHNICAL_OWNER_REF": "GOV-005",
+    "ORTHO_CLINICAL_REVIEW_REF": "GOV-006",
+    "ORTHO_PRIVACY_OWNER_REF": "GOV-007",
+    "ORTHO_LEGAL_REVIEW_REF": "GOV-007",
+    "ORTHO_LGPD_LEGAL_BASIS_REF": "GOV-007",
+    "ORTHO_RIPD_REF": "GOV-007",
+    "ORTHO_REGULATORY_REVIEW_REF": "GOV-010",
+    "ORTHO_VENDOR_REVIEW_REF": "GOV-011",
+}
 
 
 def normalize_database_url(url: str) -> str:
@@ -92,6 +107,112 @@ def allowed_data_classifications() -> set[str]:
             "ORTHO_ALLOWED_DATA_CLASSIFICATIONS aceita apenas synthetic e deidentified."
         )
     return values
+
+
+def governance_profile() -> str:
+    profile = os.getenv("ORTHO_GOVERNANCE_PROFILE", "synthetic_alpha").strip().lower()
+    if profile not in {"synthetic_alpha", "deidentified_validation"}:
+        raise RuntimeError(
+            "ORTHO_GOVERNANCE_PROFILE aceita apenas synthetic_alpha e deidentified_validation."
+        )
+    return profile
+
+
+def parse_iso_date(raw: str, variable_name: str) -> date:
+    try:
+        return date.fromisoformat(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{variable_name} deve usar o formato YYYY-MM-DD.") from exc
+
+
+def governance_review_due() -> date:
+    raw = os.getenv("ORTHO_GOVERNANCE_REVIEW_DUE", "").strip()
+    if not raw:
+        if runtime_environment() == "production":
+            raise RuntimeError("ORTHO_GOVERNANCE_REVIEW_DUE é obrigatória em produção.")
+        return date(2099, 12, 31)
+    return parse_iso_date(raw, "ORTHO_GOVERNANCE_REVIEW_DUE")
+
+
+def utc_today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def deidentified_governance_errors() -> List[str]:
+    errors: List[str] = []
+    if os.getenv("ORTHO_GOVERNANCE_APPROVED", "").strip().lower() != "true":
+        errors.append("ORTHO_GOVERNANCE_APPROVED=true")
+
+    for variable_name in GOVERNANCE_REFERENCE_CONTROLS:
+        if not os.getenv(variable_name, "").strip():
+            errors.append(variable_name)
+
+    if os.getenv("ORTHO_IDENTITY_MODE", "").strip().lower() != "individual_rbac":
+        errors.append("ORTHO_IDENTITY_MODE=individual_rbac")
+    if os.getenv("ORTHO_BACKUP_MODE", "").strip().lower() != "managed_pitr":
+        errors.append("ORTHO_BACKUP_MODE=managed_pitr")
+    if os.getenv("ORTHO_CHANGE_CONTROL_MODE", "").strip().lower() != "protected_checks":
+        errors.append("ORTHO_CHANGE_CONTROL_MODE=protected_checks")
+
+    expiry_raw = os.getenv("ORTHO_GOVERNANCE_EXPIRES_ON", "").strip()
+    if not expiry_raw:
+        errors.append("ORTHO_GOVERNANCE_EXPIRES_ON")
+    else:
+        try:
+            expiry = date.fromisoformat(expiry_raw)
+        except ValueError:
+            errors.append("ORTHO_GOVERNANCE_EXPIRES_ON=YYYY-MM-DD")
+        else:
+            if expiry <= utc_today():
+                errors.append("ORTHO_GOVERNANCE_EXPIRES_ON=future_date")
+
+    return errors
+
+
+def governance_blocker_ids() -> List[str]:
+    blockers = {
+        control_id
+        for variable_name, control_id in GOVERNANCE_REFERENCE_CONTROLS.items()
+        if not os.getenv(variable_name, "").strip()
+    }
+    if os.getenv("ORTHO_GOVERNANCE_APPROVED", "").strip().lower() != "true":
+        blockers.add("GOV-004")
+    if os.getenv("ORTHO_IDENTITY_MODE", "").strip().lower() != "individual_rbac":
+        blockers.add("GOV-008")
+    if os.getenv("ORTHO_BACKUP_MODE", "").strip().lower() != "managed_pitr":
+        blockers.add("GOV-009")
+    if os.getenv("ORTHO_CHANGE_CONTROL_MODE", "").strip().lower() != "protected_checks":
+        blockers.add("GOV-012")
+
+    expiry_raw = os.getenv("ORTHO_GOVERNANCE_EXPIRES_ON", "").strip()
+    try:
+        approval_current = bool(expiry_raw) and date.fromisoformat(expiry_raw) > utc_today()
+    except ValueError:
+        approval_current = False
+    if not approval_current:
+        blockers.add("GOV-004")
+    return sorted(blockers)
+
+
+def governance_status() -> Dict[str, Any]:
+    allowed = allowed_data_classifications()
+    review_due = governance_review_due()
+    review_current = review_due >= utc_today()
+    patient_derived_authorized = "deidentified" in allowed and not deidentified_governance_errors()
+    return {
+        "policy_version": GOVERNANCE_POLICY_VERSION,
+        "current_profile": governance_profile(),
+        "review_due": review_due.isoformat(),
+        "review_current": review_current,
+        "accepting_new_consultations": review_current,
+        "clinical_use_authorized": False,
+        "identifiable_data_supported": False,
+        "patient_derived_data_authorized": patient_derived_authorized,
+        "allowed_data_classifications": sorted(allowed),
+        "frontend_integration_authorized": False,
+        "rag_enabled": False,
+        "next_stage_blockers": governance_blocker_ids(),
+    }
 
 
 DATABASE_URL = database_url()
@@ -314,6 +435,21 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class GovernanceStatusResponse(StrictModel):
+    policy_version: str
+    current_profile: Literal["synthetic_alpha", "deidentified_validation"]
+    review_due: str
+    review_current: bool
+    accepting_new_consultations: bool
+    clinical_use_authorized: bool
+    identifiable_data_supported: bool
+    patient_derived_data_authorized: bool
+    allowed_data_classifications: List[DataClassification]
+    frontend_integration_authorized: bool
+    rag_enabled: bool
+    next_stage_blockers: List[str]
+
+
 class StartConsultationRequest(StrictModel):
     data_classification: DataClassification
     purpose: PilotPurpose
@@ -467,9 +603,22 @@ def require_api_key(api_key: Optional[str] = Security(api_key_header)) -> None:
 
 def validate_runtime_configuration() -> None:
     allowed = allowed_data_classifications()
-    if "deidentified" in allowed and os.getenv("ORTHO_GOVERNANCE_APPROVED", "").lower() != "true":
+    profile = governance_profile()
+    governance_review_due()
+    if "deidentified" in allowed:
+        errors = deidentified_governance_errors()
+        if errors:
+            raise RuntimeError(
+                "Dados desidentificados bloqueados; controles ausentes ou inválidos: "
+                + ", ".join(errors)
+            )
+        if profile != "deidentified_validation":
+            raise RuntimeError(
+                "Dados desidentificados exigem ORTHO_GOVERNANCE_PROFILE=deidentified_validation."
+            )
+    elif profile != "synthetic_alpha":
         raise RuntimeError(
-            "Dados desidentificados exigem ORTHO_GOVERNANCE_APPROVED=true após aprovação formal."
+            "ORTHO_GOVERNANCE_PROFILE deve ser synthetic_alpha quando apenas synthetic está liberado."
         )
     if runtime_environment() == "production":
         if not os.getenv("ORTHO_API_KEY"):
@@ -767,6 +916,22 @@ def create_consultation(req: StartConsultationRequest):
             status_code=403,
             detail="Classificação de dados não liberada para este estágio do piloto.",
         )
+    status = governance_status()
+    if not status["accepting_new_consultations"]:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Novas consultas suspensas: revisão de governança vencida. "
+                "Atualize e aprove o registro antes de retomar."
+            ),
+        )
+    if req.data_classification == "deidentified" and not status[
+        "patient_derived_data_authorized"
+    ]:
+        raise HTTPException(
+            status_code=503,
+            detail="Dados derivados de pacientes permanecem bloqueados pela governança.",
+        )
     purge_unclassified_and_expired_sessions()
     session_id = str(uuid4())
     now = int(time.time())
@@ -1030,16 +1195,24 @@ def read_pilot_metrics():
 
 @app.get("/", operation_id="getApiInfo", tags=["system"])
 def root():
+    governance = governance_status()
     return {
         "name": APP_NAME,
         "version": APP_VERSION,
-        "status": "ready",
-        "profile": "synthetic_pilot",
+        "status": (
+            "ready_for_synthetic_alpha"
+            if governance["accepting_new_consultations"]
+            else "governance_review_required"
+        ),
+        "profile": governance["current_profile"],
         "allowed_data_classifications": sorted(allowed_data_classifications()),
         "docs": "/docs",
         "openapi": "/openapi.json",
         "auth": "required in production via X-Ortho-Api-Key",
         "human_review_required": True,
+        "clinical_use_authorized": False,
+        "governance_policy_version": GOVERNANCE_POLICY_VERSION,
+        "governance_review_due": governance["review_due"],
     }
 
 
@@ -1050,13 +1223,29 @@ def health():
             connection.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=503, detail="Banco de dados indisponível.") from exc
+    governance = governance_status()
     return {
         "ok": True,
         "service": APP_NAME,
         "version": APP_VERSION,
         "database": "ok",
-        "profile": "synthetic_pilot",
+        "profile": governance["current_profile"],
+        "accepting_new_consultations": governance["accepting_new_consultations"],
+        "clinical_use_authorized": False,
+        "governance_policy_version": GOVERNANCE_POLICY_VERSION,
+        "governance_review_due": governance["review_due"],
     }
+
+
+@app.get(
+    "/v1/governance/status",
+    response_model=GovernanceStatusResponse,
+    operation_id="getOrthoGovernanceStatus",
+    tags=["governance"],
+    dependencies=[Depends(require_api_key)],
+)
+def get_governance_status():
+    return governance_status()
 
 
 @app.post(

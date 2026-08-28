@@ -1,6 +1,6 @@
 # Registro de decisões
 
-Versão: 1.0 - 2026-08-27
+Versão: 1.1 - 2026-08-28
 
 | ID | Decisão | Motivo | Consequência |
 |---|---|---|---|
@@ -17,3 +17,9 @@ Versão: 1.0 - 2026-08-27
 | D-011 | todas as flags do Safety Gate são obrigatórias | campo ausente não pode significar normalidade | clientes devem revisar explicitamente cada hard stop |
 | D-012 | consultas legadas sem classificação são apagadas no primeiro boot v0.5 | não há atestado de que pertençam ao piloto sintético | somente registros v0.5 classificados permanecem |
 | D-013 | a Action foi vinculada ao GPT privado com permissão externa por chamada | manter controle humano explícito também no transporte | `sempre permitir` não foi habilitado durante a validação |
+| D-014 | governança passa a ser validada como código | políticas sem verificação podem divergir do deploy | CI compara registro, FastAPI e Render |
+| D-015 | autorização do alpha possui revisão com vencimento | aprovação indefinida favorece deriva de escopo | novas consultas param após 2026-09-03 sem renovação deliberada |
+| D-016 | uma variável booleana não basta para liberar `deidentified` | aprovação precisa de responsáveis, evidências, identidade e resiliência | startup falha quando qualquer controle obrigatório estiver ausente |
+| D-017 | frontend Sites permanece desconectado | contrato de integração e governança de dados ainda não existem | nenhuma chamada de navegador ou tunnel é autorizada |
+| D-018 | o projeto não declara enquadramento regulatório concluído | a finalidade pretendida pode alterar a classificação sanitária | uso clínico fica bloqueado até revisão formal de SaMD |
+| D-019 | retenção local não é presumida para fornecedores | ChatGPT, Action, Render e futuros serviços têm controles próprios | dados derivados de pacientes exigem revisão contratual e de transferência |

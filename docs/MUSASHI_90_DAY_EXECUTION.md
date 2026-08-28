@@ -1,6 +1,6 @@
 # Plano Musashi 90 dias - execução verificável
 
-Versão: 1.0
+Versão: 1.1
 Dia 0: 2026-08-27
 Revisões: 2026-09-03, 2026-09-26, 2026-10-26 e 2026-11-25
 
@@ -16,7 +16,7 @@ Durante os 90 dias:
 - não adicionar função clínica sem substituir outra ou responder a falha observada;
 - interromper o piloto diante de incidente de privacidade, hard stop perdido ou responsabilidade indefinida.
 
-## Estado em 2026-08-27
+## Estado em 2026-08-28
 
 | Entrega | Estado | Evidência |
 |---|---|---|
@@ -31,6 +31,10 @@ Durante os 90 dias:
 | Retenção e exclusão | concluídas para o alpha | expiração em 168 horas e endpoint `DELETE` |
 | Métricas sem texto clínico | concluídas | feedback e agregação do piloto |
 | GPT Action importada no GPT | concluída | health, criação sintética autenticada e exclusão testados no Preview |
+| Governança como código | concluída para o alpha | registro de 13 controles, CI e `/v1/governance/status` |
+| Vencimento da autorização técnica | concluído | novas consultas bloqueiam após 2026-09-03 sem renovação |
+| Fluxo de dados e RIPD preliminar | concluídos como diagnóstico | não equivalem a aprovação jurídica nem autorizam dado real |
+| Frontend privado sintético | concluído em projeto separado | permanece deliberadamente desconectado da API |
 | Revisão clínica humana dos 50 casos | pendente | não substituída pelos testes de software |
 | RBAC/MFA por usuário | pendente | bloqueia beta com múltiplos usuários reais |
 | Revisão jurídica/LGPD institucional | pendente | bloqueia qualquer dado real |
@@ -48,6 +52,7 @@ Critérios obrigatórios:
 - 50 cenários sintéticos aprovados;
 - riscos, decisões e responsáveis versionados;
 - ambiente limitado a `synthetic`.
+- `/v1/governance/status` confirma revisão vigente e uso clínico não autorizado.
 
 Decisão permitida: `AVANÇAR PARA ALPHA INTERNO` ou `CORRIGIR`. Não há autorização para paciente real.
 
@@ -58,6 +63,7 @@ Decisão permitida: `AVANÇAR PARA ALPHA INTERNO` ou `CORRIGIR`. Não há autori
 - registrar apenas disposição (`accepted`, `edited`, `rejected`), tempo, correções, falsos alertas e falha técnica;
 - realizar revisão semanal de falsos negativos, falsos positivos e incidentes;
 - testar revogação de chave, exclusão e runbook de incidente;
+- renovar ou suspender formalmente a autorização técnica em 2026-09-03;
 - substituir ou promover o banco antes de 2026-09-26; o banco gratuito expira nessa data.
 
 Portão do dia 30:
@@ -81,6 +87,8 @@ Somente após aprovação do portão do dia 30:
 - piloto remunerado pequeno, sem prometer escala.
 
 Qualquer uso de dado desidentificado exige aprovação formal e configuração deliberada de `ORTHO_GOVERNANCE_APPROVED=true`. Dado identificável permanece proibido nesta versão.
+
+Na v0.6, essa variável isolada é insuficiente: a API também exige referências de aprovação, responsáveis, revisão clínica, base legal, RIPD, análise de fornecedor e regulatória, identidade individual, RBAC e infraestrutura com PITR.
 
 ## Dias 61-90 - produto repetível
 
