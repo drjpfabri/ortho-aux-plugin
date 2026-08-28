@@ -1,6 +1,6 @@
 # Registro de decisões
 
-Versão: 1.1 - 2026-08-28
+Versão: 1.2 - 2026-08-28
 
 | ID | Decisão | Motivo | Consequência |
 |---|---|---|---|
@@ -23,3 +23,5 @@ Versão: 1.1 - 2026-08-28
 | D-017 | frontend Sites permanece desconectado | contrato de integração e governança de dados ainda não existem | nenhuma chamada de navegador ou tunnel é autorizada |
 | D-018 | o projeto não declara enquadramento regulatório concluído | a finalidade pretendida pode alterar a classificação sanitária | uso clínico fica bloqueado até revisão formal de SaMD |
 | D-019 | retenção local não é presumida para fornecedores | ChatGPT, Action, Render e futuros serviços têm controles próprios | dados derivados de pacientes exigem revisão contratual e de transferência |
+| D-020 | o Render publica somente depois dos checks de CI | reduzir a chance de deploy de commit não validado | `autoDeployTrigger=checksPass` foi confirmado no serviço efetivo |
+| D-021 | a Action v0.6 permanece privada | política de privacidade, fornecedores e uso clínico ainda não foram aprovados | health e governança podem ser testados com conteúdo sintético, sem ampliar acesso |

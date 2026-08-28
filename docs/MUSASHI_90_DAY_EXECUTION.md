@@ -1,6 +1,6 @@
 # Plano Musashi 90 dias - execução verificável
 
-Versão: 1.1
+Versão: 1.2
 Dia 0: 2026-08-27
 Revisões: 2026-09-03, 2026-09-26, 2026-10-26 e 2026-11-25
 
@@ -25,13 +25,14 @@ Durante os 90 dias:
 | Autenticação servidor-servidor | concluída | `X-Ortho-Api-Key` |
 | Safety Gate | concluído em engenharia | suíte sintética automatizada |
 | 50 casos sintéticos | concluído em automação | `tests/test_safety_scenarios.py` |
-| Fluxo HTTP v0.5 em produção | concluído | autenticação, captura, auditoria, finalização e exclusão em `TEST_REPORT.txt` |
+| Fluxo HTTP v0.6 em produção | concluído | health, governança e evidência ponta a ponta preservada em `TEST_REPORT.txt` |
 | Logs sem corpo clínico | concluído na revisão atual | registros do Render contêm somente rota e status |
 | Bloqueio de identificadores | concluído como defesa complementar | testes de privacidade e erros higienizados |
 | Retenção e exclusão | concluídas para o alpha | expiração em 168 horas e endpoint `DELETE` |
 | Métricas sem texto clínico | concluídas | feedback e agregação do piloto |
-| GPT Action importada no GPT | concluída | health, criação sintética autenticada e exclusão testados no Preview |
+| GPT Action v0.6 importada no GPT | concluída | health e governança autenticada testados no Preview; nenhum registro criado nesta mudança |
 | Governança como código | concluída para o alpha | registro de 13 controles, CI e `/v1/governance/status` |
+| Deploy condicionado ao CI | concluído no Render | configuração efetiva `autoDeployTrigger=checksPass` |
 | Vencimento da autorização técnica | concluído | novas consultas bloqueiam após 2026-09-03 sem renovação |
 | Fluxo de dados e RIPD preliminar | concluídos como diagnóstico | não equivalem a aprovação jurídica nem autorizam dado real |
 | Frontend privado sintético | concluído em projeto separado | permanece deliberadamente desconectado da API |

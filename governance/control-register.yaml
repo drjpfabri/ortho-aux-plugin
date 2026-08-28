@@ -136,9 +136,11 @@ controls:
     domain: change_control
     criticality: high
     status: partial
-    statement: Change artifacts and CI exist; protected-branch enforcement is not yet confirmed.
+    statement: Change artifacts, CI and a checks-pass deploy gate exist; protected-branch enforcement is not yet confirmed.
     evidence:
       - docs/CHANGE_CONTROL.md
+      - render.yaml
+      - TEST_REPORT.txt
       - .github/workflows/ci.yml
       - .github/CODEOWNERS
       - .github/dependabot.yml

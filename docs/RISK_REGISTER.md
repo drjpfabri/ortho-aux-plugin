@@ -1,6 +1,6 @@
 # Registro de riscos
 
-Versão: 1.1 - 2026-08-28
+Versão: 1.2 - 2026-08-28
 
 Próxima revisão: 2026-09-03
 
@@ -24,7 +24,8 @@ Próxima revisão: 2026-09-03
 | R-016 | Enquadramento regulatório de SaMD não foi definido | crítico | finalidade atual não autoriza uso clínico | regulatório/qualidade a nomear | formalizar uso pretendido e classificação antes do beta clínico | aberto |
 | R-017 | Aprovação pode ficar obsoleta com deriva de configuração | alto | versão de política, CI e vencimento automático em 2026-09-03 | Product Owner + técnico | renovar ou suspender na data | controlado |
 | R-018 | Integração futura do frontend pode omitir ou rebaixar bloqueadores | crítico | frontend separado, sem tunnel e sem CORS | clínico + técnico | contrato fechado e testes E2E antes de integrar | controlado no alpha |
-| R-019 | CODEOWNERS e CI não garantem revisão sem proteção efetiva da branch | alto | template, Dependabot e deploy configurado para aguardar checks | responsável técnico a nomear | confirmar branch protegida e checks obrigatórios antes de usuário externo | aberto |
+| R-019 | CODEOWNERS e CI não garantem revisão sem proteção efetiva da branch | alto | template, Dependabot e deploy efetivo configurado para aguardar checks | responsável técnico a nomear | confirmar branch protegida e checks obrigatórios antes de usuário externo | aberto |
+| R-020 | Action sem URL de política de privacidade poderia ser compartilhada antes da aprovação | alto | GPT mantido privado e somente sintético | privacidade/jurídico a nomear | publicar política aprovada e vincular antes de ampliar acesso | aberto |
 
 ## Regra de aceitação
 

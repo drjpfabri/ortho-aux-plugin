@@ -1,135 +1,145 @@
-TEST REPORT - Ortho Aux Plugin v0.5
+TEST REPORT - Ortho Aux Plugin v0.6
 
-Date: 2026-08-27
+Date: 2026-08-28
 Runtime validated: Python 3.12
-Production commit: b989432a9509c1a6d7281e16d413d774865b03de
-Render deploy: dep-da7rf1jl550s73cucreg (live)
+Governance policy: 2026-08-28.1
+Validated application commit: 6d829f01d85ce1083a902bd151deeca8a7965ffe
+Validated application deploy: dep-da8h00tbedkc73alel9g
 
 Executive result:
 
-- The Musashi day-7 engineering gate is complete, including an authenticated
-  GPT Action round trip in the intended GPT's Preview.
-- The current release is an internal synthetic alpha, not a clinical-production
-  system and not authorized for identifiable or real patient data.
+- Governance hardening is deployed and the restricted engineering release is
+  operational.
+- The current release is an internal synthetic alpha. Clinical use, patient-derived
+  data, identifiable data, frontend integration and RAG are not authorized.
+- The authorization review expires on 2026-09-03. New consultations fail closed
+  after that date unless the governance record is deliberately renewed.
 - Every clinical output remains a draft and requires physician review.
 
 Automated validation in a clean Python 3.12 environment:
 
-- 72 tests passed, including exactly 50 synthetic safety scenarios
+- 76 tests passed, including exactly 50 synthetic safety scenarios
+- governance-as-code validator passed for policy 2026-08-28.1 and 13 controls
 - Ruff static analysis passed
 - pip dependency consistency check passed
 - Python bytecode compilation passed
-- render.yaml and the remaining YAML files parsed successfully
+- render.yaml and all governance YAML parsed successfully
+- render.yaml validated against Render's official Blueprint JSON Schema
 - generated OpenAPI 3.1 contract matches gpt-action.openapi.yaml
 - no duplicate operationId values in the GPT Action contract
+- git diff whitespace validation passed
 
-Local HTTP smoke test with a real Uvicorn process:
+Local HTTP validation with a real Uvicorn process:
 
-- GET /health: 200, database=ok, profile=synthetic_pilot
-- POST /v1/consultations without authentication: 401
-- authenticated synthetic consultation start and fact capture: 200
-- compartment-syndrome warning remains active when distal pulse is present
-- direct identifier input is rejected with 422 and is not echoed
-- explicit consultation deletion succeeds
-- application logs contain method, path, status and request ID, not request bodies
+- GET /health: 200, version=0.6.0, database=ok, profile=synthetic_alpha
+- GET /v1/governance/status without authentication: 401
+- authenticated GET /v1/governance/status: 200
+- governance reports clinical_use_authorized=false and
+  patient_derived_data_authorized=false
+- authenticated synthetic consultation start: 200
+- explicit synthetic consultation deletion: 200
+- no production credential was printed or written to the repository
 
-Production deployment:
+Production deployment and infrastructure:
 
 - GitHub repository: https://github.com/drjpfabri/ortho-aux-plugin (private)
 - Render service: https://ortho-aux-plugin.onrender.com
+- Render service ID: srv-da7n24id0e5s73a9locg
 - Runtime: Render native Python, free web-service plan
-- Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 - Health check path: /health
-- Database: Render PostgreSQL 18 in Virginia, connected through the private URL
+- Database: Render PostgreSQL 18 over the private Render network
 - ORTHO_API_KEY and DATABASE_URL remain Render secrets and are not committed
 - Production is fail-closed without both the API key and PostgreSQL
-- Allowed data classification is explicitly limited to synthetic
-- Default consultation retention is 168 hours
+- allowed data classification is explicitly limited to synthetic
+- default consultation retention is 168 hours
+- effective Render auto-deploy mode is After CI Checks Pass
+- Render connector independently reported autoDeployTrigger=checksPass
 
-Production HTTP validation on v0.5.0:
+Production HTTP validation on v0.6.0:
 
-- GET /health: 200, ok=true, database=ok, profile=synthetic_pilot
+- GET /: 200, status=ready_for_synthetic_alpha
+- GET /health: 200, database=ok, accepting_new_consultations=true
 - GET /docs: 200
-- GET /openapi.json: 200, OpenAPI 3.1.0, API version 0.5.0
-- POST /v1/consultations without X-Ortho-Api-Key: 401
-- POST /v1/consultations with X-Ortho-Api-Key and synthetic attestation: 200
-- POST /v1/consultations/{id}/events: 200, two facts with explicit provenance
-- direct-identifier attempt: 422, submitted identifier absent from the error body
-- POST /v1/consultations/{id}/audit: 200, can_finalize=false, one alert and
-  one blocker for compartment syndrome without a documented urgent response
-- the blocker remains active with distal_pulse_present=true
-- POST /v1/evidence/search: 200, zero excerpts and metadata-only routing
-- POST /v1/consultations/{id}/finalize: 200, status=draft_ready and
-  human_review_required=true
-- pilot feedback and aggregate metrics: 200, contains_clinical_text=false
-- DELETE /v1/consultations/{id}: 200; subsequent GET: 404
-- Render application log review: only routes and status codes, no clinical body
-- Render error-log query: no application errors in the reviewed period
+- GET /openapi.json: 200, OpenAPI 3.1.0, API version 0.6.0
+- OpenAPI includes getOrthoGovernanceStatus at /v1/governance/status
+- unauthenticated GET /v1/governance/status: 401
+- authenticated GET /v1/governance/status: 200
+- governance status reports policy 2026-08-28.1, review due 2026-09-03,
+  allowed_data_classifications=[synthetic] and clinical_use_authorized=false
+- Render error-log query returned no errors in the reviewed deployment period
+- application logs contain routes and status codes, not request bodies
 
 GPT Action validation:
 
-- the production OpenAPI contract was imported from /openapi.json into the private
-  Robô de Apoio Ortopédico GPT
-- authentication was saved as a custom API-key header named X-Ortho-Api-Key
-- the secret was copied directly from Render, was not printed, and the local
-  clipboard was cleared immediately after configuration
-- Preview called getApiHealth and Render returned GET /health: 200
-- Preview generated the required synthetic attestation payload and Render returned
-  POST /v1/consultations: 200, proving authenticated Action access
-- the test consultation was removed through deleteOrthoConsultation and Render
-  returned DELETE /v1/consultations/{id}: 200
-- only one-time outbound-call permission was used during validation; persistent
-  "always allow" permission was not enabled
+- the production OpenAPI contract was re-imported from /openapi.json into the
+  private Robo de Apoio Ortopedico GPT
+- the editor showed API version 0.6.0 and operation getOrthoGovernanceStatus
+- existing custom X-Ortho-Api-Key authentication remained configured; the secret
+  was not displayed, copied or changed
+- Preview called getApiHealth; Render logged GET /health: 200 at
+  2026-08-28T04:43:23Z
+- Preview called getOrthoGovernanceStatus; the GPT rendered the governance JSON
+  and Render logged GET /v1/governance/status: 200 at 2026-08-28T04:44:19Z
+- only one-time outbound-call permission was used; persistent "always allow"
+  permission was not enabled
+- no consultation or clinical record was created during this schema validation
+- the GPT update completed successfully and access remained private
 
-Persistence and database validation:
+Governance controls and release gates:
 
-- A prior synthetic consultation was recovered after two deliberate redeploys,
-  proving that state does not depend on the web service's ephemeral filesystem.
-- The v0.5 production flow completed against PostgreSQL and /health reported
-  database=ok before and after the test.
-- The synthetic consultation used for this validation was deleted at the end.
-- A separate read-only connection through the external Render endpoint could not
-  be established because that endpoint closed the TLS session. Render's own MCP
-  query showed the same limitation. This did not affect the service's private
-  PostgreSQL connection, but direct database observability remains an open
-  operations item.
+- a versioned control register contains GOV-001 through GOV-013
+- CI verifies policy/code/Blueprint synchronization and rejects release-boundary drift
+- deidentified_validation requires formal approval references, named owners,
+  clinical review, LGPD basis, RIPD, regulatory and supplier reviews, individual
+  RBAC, managed PITR and protected checks
+- identifiable data is unsupported in v0.6
+- frontend integration is false and the private synthetic Sites frontend remains
+  deliberately disconnected
+- RAG is false and evidence search remains metadata-only
+- branch protection is not confirmed; GOV-012 remains partial
+
+Persistence and prior end-to-end evidence retained from v0.5:
+
+- a synthetic consultation survived two deliberate redeploys, proving that state
+  does not depend on the web service's ephemeral filesystem
+- the complete authenticated synthetic flow covered create, capture, audit,
+  finalize, feedback, metrics and deletion against PostgreSQL
+- the synthetic consultation used for that validation was deleted at the end
 
 Root cause and resolution:
 
-- The original repository and Render service were disconnected.
-- The original SQLite database used an ephemeral free-service filesystem.
-- Safety patches discussed in chat were not permanently encoded or regression-tested.
-- The old contract did not enforce explicit data classification, provenance,
-  complete safety review, retention or privacy-safe metrics.
-- FastAPI startup and port binding were normalized for Render using $PORT.
-- PostgreSQL persistence, fail-closed production configuration, API-key
-  authentication, request limits and sanitized validation errors were implemented.
-- All 12 Safety Gate flags are mandatory; missing data no longer means normal.
-- Baseline and post-intervention neurovascular checks, pediatric review and urgent
-  response documentation now block finalization when required.
-- Reported information cannot be stored as a physical finding, and AI suggestions
-  cannot arrive prevalidated.
-- The static GPT Action schema is generated from and tested against the application.
+- the original repository and Render service were disconnected
+- the original SQLite database used an ephemeral free-service filesystem
+- safety and governance decisions discussed in chat were not permanently encoded
+  or regression-tested
+- FastAPI startup, OpenAPI, authentication, PostgreSQL persistence, sanitized
+  errors, retention and request limits were normalized and tested
+- all 12 Safety Gate flags are mandatory; missing data does not mean normal
+- governance moved from a single boolean to an expiring, multi-control fail-closed gate
+- deployment now waits for GitHub checks before release
 
 Current limitations and release boundary:
 
-- The free PostgreSQL database expires on 2026-09-26 and has no backups or PITR.
-- One global API key does not provide individual identity, RBAC or per-user revocation.
-- Each Action call can still require explicit user permission in ChatGPT because
-  persistent "always allow" access was intentionally not enabled.
-- The 50 automated cases still require signed human clinical review.
-- Legal, privacy/DPO and institutional owners remain to be formally named.
-- Identifier detection is defense in depth, not proof of anonymization.
-- The evidence endpoint remains a metadata-only placeholder; no medical RAG or
-  vector store is connected.
-- The free web service can cold-start after inactivity.
-- Docker was hardened for non-root execution, but the image was not built locally
-  because Docker is not installed on this machine.
+- the free PostgreSQL database expires on 2026-09-26 and has no backups or PITR
+- one global API key does not provide individual identity, RBAC or per-user revocation
+- GitHub branch protection and required-review enforcement are not yet confirmed
+- the 50 automated cases still require signed independent human clinical review
+- technical, clinical, privacy and legal owners remain to be formally appointed
+- legal basis, formal RIPD approval, supplier review and SaMD analysis are pending
+- the GPT Action privacy-policy URL is not configured; the GPT must remain private
+  until an approved policy is published and linked
+- identifier detection is defense in depth, not proof of anonymization
+- the evidence endpoint remains a metadata-only placeholder; no medical RAG or
+  vector store is connected
+- the free web service can cold-start after inactivity
+- Docker is hardened for non-root execution, but the image was not built locally
+  because Docker is not installed on this machine
 
 Decision:
 
-- Engineering status: READY FOR SYNTHETIC INTERNAL ALPHA.
+- Engineering status: READY FOR RESTRICTED SYNTHETIC INTERNAL ALPHA.
 - Clinical-production status: NOT AUTHORIZED.
-- Next mandatory actions: obtain signed human clinical review of the 50 scenarios,
-  name the governance owners, and replace or migrate the expiring free database
-  before any expansion beyond the synthetic internal alpha.
+- Patient-derived-data status: NOT AUTHORIZED.
+- Next mandatory action: renew or suspend the alpha on 2026-09-03. No expansion
+  may occur before human clinical review, named governance owners, legal/privacy
+  approval, individual access control, durable backup/PITR and branch protection.

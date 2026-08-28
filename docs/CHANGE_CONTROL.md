@@ -40,7 +40,7 @@ O CI executa compilação, lint, registro de governança, testes da API, 50 cen�
 - um portão bloqueado aparece como autorizado;
 - controles ou evidências obrigatórios desaparecem.
 
-O Blueprint usa `autoDeployTrigger: checksPass`; a intenção operacional é publicar somente depois que os checks do GitHub forem aprovados. A configuração efetiva do serviço deve ser verificada após cada mudança de infraestrutura.
+O Blueprint usa `autoDeployTrigger: checksPass`; a configuração efetiva do serviço foi confirmada no Render em 2026-08-28 como **After CI Checks Pass**. Essa verificação deve ser repetida após cada mudança de infraestrutura.
 
 `CODEOWNERS`, o template de pull request e Dependabot estão versionados. Enquanto proteção da branch e checks obrigatórios não estiverem confirmados no GitHub, o controle permanece parcial e bloqueia qualquer liberação de dados derivados de paciente.
 
