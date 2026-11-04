@@ -27,6 +27,15 @@ Próxima revisão: 2026-09-03
 | R-019 | CODEOWNERS e CI não garantem revisão sem proteção efetiva da branch | alto | template, Dependabot e deploy efetivo configurado para aguardar checks | responsável técnico a nomear | confirmar branch protegida e checks obrigatórios antes de usuário externo | aberto |
 | R-020 | Action sem URL de política de privacidade poderia ser compartilhada antes da aprovação | alto | GPT mantido privado e somente sintético | privacidade/jurídico a nomear | publicar política aprovada e vincular antes de ampliar acesso | aberto |
 
+## Proposta técnica C2: isolamento dos testes — 2026-11-03
+
+- Risco identificado: variáveis herdadas, como `DATABASE_URL`, `RENDER`, chave de API e referências `ORTHO_*`, podem substituir o banco temporário, ativar configuração de produção ou tornar a suíte dependente da ordem de coleta.
+- Controle proposto: preparar configuração exclusivamente sintética em `tests/conftest.py`, antes da importação da aplicação; usar SQLite em diretório temporário; descartar influências herdadas no processo de teste; fechar o engine e remover o diretório ao encerrar.
+- Evidência exigida: regressão em subprocessos com banco sentinela e valores artificiais; verificar que o banco herdado permanece intacto, o teste de API usa SQLite temporário, a coleta isolada dos cenários não cria `data/` no projeto e o diretório temporário é removido; executar suíte completa e lint.
+- Risco residual: este isolamento é da suíte pytest; não protege execução direta da aplicação ou de outros scripts. Uma alteração futura que importe a aplicação antes do conftest exige nova verificação.
+- Estado: proposta C2, com aprovação técnica humana e CI pendentes. Nenhum estado de R-001 a R-020 foi alterado; não há renovação da governança ou autorização de uso clínico.
+- Reversão: reverter o commit desta proposta, preservando os demais commits e evidências; executar novamente os checks antes de qualquer nova alteração.
+
 ## Regra de aceitação
 
 - Risco crítico aberto bloqueia dados derivados de paciente e uso clínico.
