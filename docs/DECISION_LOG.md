@@ -25,3 +25,11 @@ Versão: 1.2 - 2026-08-28
 | D-019 | retenção local não é presumida para fornecedores | ChatGPT, Action, Render e futuros serviços têm controles próprios | dados derivados de pacientes exigem revisão contratual e de transferência |
 | D-020 | o Render publica somente depois dos checks de CI | reduzir a chance de deploy de commit não validado | `autoDeployTrigger=checksPass` foi confirmado no serviço efetivo |
 | D-021 | a Action v0.6 permanece privada | política de privacidade, fornecedores e uso clínico ainda não foram aprovados | health e governança podem ser testados com conteúdo sintético, sem ampliar acesso |
+
+## Proposta C2: ambiente de teste sintético isolado — 2026-11-03
+
+Proposta para revisão, sem aprovação técnica humana registrada: centralizar a configuração da suíte em `tests/conftest.py`, antes de qualquer importação da aplicação pelos testes. A configuração herdada do processo é substituída somente durante a sessão pytest por ambiente `test`, dados `synthetic` e banco SQLite temporário; conexões são fechadas e os arquivos temporários são removidos ao encerrar.
+
+Motivo: `DATABASE_URL` tem precedência sobre `ORTHO_AUX_DB`, `RENDER=true` força produção e credenciais herdadas podem alterar o resultado da suíte. A preparação anterior em `test_plugin.py` também não cobria a coleta isolada de `test_safety_scenarios.py`.
+
+Aceitação exige suíte completa, lint e regressões em subprocessos com configuração artificial, banco sentinela intacto e limpeza do banco temporário. A proposta não altera código da aplicação, schema, controles de liberação, infraestrutura ou datas da governança. Decisões D-001 a D-021 permanecem como registradas. Reversão por novo commit que reverta apenas esta proposta, sem apagar histórico ou evidências.

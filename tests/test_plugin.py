@@ -1,18 +1,5 @@
-import os
-import tempfile
-
 import pytest
 import yaml
-
-tmp = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
-os.environ["ORTHO_AUX_DB"] = tmp.name
-os.environ["ORTHO_ENV"] = "test"
-os.environ["ORTHO_ALLOWED_DATA_CLASSIFICATIONS"] = "synthetic"
-os.environ["ORTHO_DATA_RETENTION_HOURS"] = "168"
-os.environ["ORTHO_GOVERNANCE_PROFILE"] = "synthetic_alpha"
-os.environ["ORTHO_GOVERNANCE_REVIEW_DUE"] = "2099-12-31"
-os.environ["ORTHO_GOVERNANCE_APPROVED"] = "false"
-
 from fastapi.testclient import TestClient
 from sqlalchemy import update
 
