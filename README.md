@@ -42,13 +42,22 @@ Esses limites bloqueiam uso com pacientes ou expansão para beta clínico.
 
 ### Python
 
+Use Python 3.12, como no CI, a partir da raiz do repositório. Execute em um terminal local sem configurações de produção: variáveis já exportadas, inclusive `DATABASE_URL`, têm precedência sobre o arquivo `.env`.
+
 ```bash
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
-cp .env.example .env
-./start.sh
+test -f .env || cp .env.example .env
 ```
+
+O comando preserva um `.env` existente. Antes de iniciar, defina `ORTHO_API_KEY` no `.env` com uma chave exclusiva para teste local; ela será usada no cabeçalho `X-Ortho-Api-Key` dos endpoints autenticados.
+
+```bash
+python -m uvicorn app.main:app --env-file .env --host 127.0.0.1 --port 8000
+```
+
+Esse comando usa o ambiente Python ativado, carrega explicitamente o `.env` e atende somente no computador local. A data de revisão de governança do exemplo é preservada; quando vencida, novas consultas permanecem bloqueadas. A disponibilidade de `/health` não comprova autorização para novas consultas. Consulte `/v1/governance/status`; a renovação da revisão segue `docs/CHANGE_CONTROL.md`.
 
 ### Docker
 
